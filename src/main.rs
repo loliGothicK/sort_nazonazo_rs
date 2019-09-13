@@ -54,7 +54,7 @@ pub mod status {
         pub static ref DICTIONARY: IndexMap<String, String> = {
             let mut dictionary = IndexMap::new();
             for line in BufReader::new(
-                fs::File::open("/home/mitama/github/mitama-test-bot/dics/TOEIC.dic").unwrap(),
+                fs::File::open("/home/mitama/github/sort_nazonazo_rs/dics/TOEIC.dic").unwrap(),
             )
             .lines()
             {
@@ -151,7 +151,7 @@ fn en(ctx: &mut Context, msg: &Message) -> CommandResult {
             msg.channel_id.say(
                 &ctx,
                 format!(
-                    "ソートなぞなぞ ソート前の文字列な〜んだ？\n {}", sorted
+                    "ソートなぞなぞ ソート前の文字列な〜んだ？\n{}", sorted
                 ),
             ).expect("fail to post");
         }
