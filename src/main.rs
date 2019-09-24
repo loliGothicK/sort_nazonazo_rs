@@ -5,7 +5,7 @@ use std::env;
 extern crate lazy_static;
 extern crate serde_derive;
 extern crate toml;
-use itertools::sorted;
+
 use serenity::{
     client::{
         bridge::gateway::{ShardId, ShardManager},
