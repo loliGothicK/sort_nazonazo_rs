@@ -36,7 +36,7 @@ group!({
 group!({
     name: "contest",
     options: {},
-    commands: [contest],
+    commands: [contest, unrated],
 });
 struct Handler;
 
@@ -227,6 +227,27 @@ pub mod bot {
         StandingBy,
         Holding(String, String, Lang),
         Contesting(String, String, Lang, (u32, u32)),
+    }
+
+    impl Status {
+        pub fn is_standing_by(&self) -> bool {
+            match self {
+                Status::StandingBy => true,
+                _ => false,
+            }
+        }
+        pub fn is_holding(&self) -> bool {
+            match self {
+                Status::Holding(..) => true,
+                _ => false,
+            }
+        }
+        pub fn is_contesting(&self) -> bool {
+            match self {
+                Status::Contesting(..) => true,
+                _ => false,
+            }
+        }
     }
 
     lazy_static! {
@@ -494,17 +515,10 @@ fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
 #[command]
 fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     let first = args.single::<String>();
-    let second =args.single::<u32>();
-    match first {
-        Ok(ref x) if x == &"unrated".to_string() => {
-            *bot::QUIZ.lock().unwrap() = bot::Status::StandingBy;
-            return Ok(());
-        },
-        _ => {},
-    };
+    let mut second = args.single::<u32>();
     if !msg.author.bot {
         match (first, second) {
-            (Ok(lang), Ok(num)) => {
+            (Ok(lang), Ok(mut num)) => {
                 if num == 0 {
                     msg.channel_id
                         .say(
@@ -513,6 +527,15 @@ fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
                         )
                         .expect("fail to post");
                     return Ok(());
+                }
+                if num > 100 {
+                    msg.channel_id
+                        .say(
+                            &ctx,
+                            format!("{}問は多すぎるので100問にしますね！", num)
+                        )
+                        .expect("fail to post");
+                    num = 100;
                 }
                 let (dic, lang) = match lang {
                     en if en == "en" => (&*dictionary::ENGLISH, bot::Lang::En),
@@ -531,7 +554,7 @@ fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
                     .say(
                         &ctx,
                         format!(
-                            "{number}問のコンテストを始めます！。\n問 1 (1/{number})\nソートなぞなぞ ソート前の文字列な〜んだ？\n{prob}",
+                            "{number}問のコンテストを始めます。\n問 1 (1/{number})\nソートなぞなぞ ソート前の文字列な〜んだ？\n{prob}",
                             number = num,
                             prob = sorted
                         ),
@@ -561,5 +584,29 @@ fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
         }
     };
 
+    Ok(())
+}
+
+#[command]
+fn unrated(ctx: &mut Context, msg: &Message) -> CommandResult {
+    if let Ok(mut guard) = bot::QUIZ.lock() {
+        if guard.is_contesting() {
+            msg.channel_id
+                .say(
+                    &ctx,
+                    "コンテストを中止します。",
+                )
+                .expect("fail to post");
+            *guard = bot::Status::StandingBy;
+        }
+        else {
+            msg.channel_id
+                .say(
+                    &ctx,
+                    "現在コンテストは開催されていません。",
+                )
+                .expect("fail to post");
+        }
+    }
     Ok(())
 }
