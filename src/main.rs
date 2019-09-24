@@ -254,7 +254,13 @@ fn prob(ctx: &mut Context, msg: &Message, lang: bot::Lang) -> (String, String) {
     (ans.clone(), sorted.clone())
 }
 
-fn contest_continue(ctx: &mut Context, msg: &Message, lang: bot::Lang, count: u32, num: u32) -> (String, String) {
+fn contest_continue(
+    ctx: &mut Context,
+    msg: &Message,
+    lang: bot::Lang,
+    count: u32,
+    num: u32,
+) -> (String, String) {
     let dic = match lang {
         bot::Lang::En => &*dictionary::ENGLISH,
         bot::Lang::Ja => &*dictionary::JAPANESE,
@@ -323,7 +329,8 @@ fn main() {
                 if let Ok(mut guard) = bot::QUIZ.lock() {
                     match &mut *guard {
                         bot::Status::Holding(ans, _sorted, _lang)
-                        if &ans.to_lowercase() == &msg.content.to_lowercase() => {
+                            if &ans.to_lowercase() == &msg.content.to_lowercase() =>
+                        {
                             println!("pass Ok arm: ans = {}.", ans);
                             msg.channel_id
                                 .say(
@@ -335,9 +342,10 @@ fn main() {
                                 )
                                 .expect("fail to post");
                             *guard = bot::Status::StandingBy;
-                        },
+                        }
                         bot::Status::Contesting(ref ans, _, lang, (count, num))
-                        if &ans.to_lowercase() == &msg.content.to_lowercase() => {
+                            if &ans.to_lowercase() == &msg.content.to_lowercase() =>
+                        {
                             println!("pass Ok arm: ans = {}.", ans);
                             msg.channel_id
                                 .say(
@@ -358,7 +366,10 @@ fn main() {
                                     let mut v = Vec::from_iter(guard.iter());
                                     v.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
                                     msg.channel_id
-                                        .say(&ctx, format!("{}問連続のコンテストが終了しました。", num))
+                                        .say(
+                                            &ctx,
+                                            format!("{}問連続のコンテストが終了しました。", num),
+                                        )
                                         .expect("fail to post");
                                     for (name, ac) in &v {
                                         msg.channel_id
@@ -367,14 +378,20 @@ fn main() {
                                     }
                                     drop(v);
                                 }
-                                *bot::CONTEST_REUSLT.write().unwrap() = std::collections::BTreeMap::new();
+                                *bot::CONTEST_REUSLT.write().unwrap() =
+                                    std::collections::BTreeMap::new();
+                            } else {
+                                let (ans, sorted) =
+                                    contest_continue(ctx, &msg, *lang, *count, *num);
+                                *guard = bot::Status::Contesting(
+                                    ans.clone(),
+                                    sorted.clone(),
+                                    *lang,
+                                    (*count, *num),
+                                );
                             }
-                            else {
-                                let (ans, sorted) = contest_continue(ctx, &msg, *lang, *count, *num);
-                                *guard = bot::Status::Contesting(ans.clone(), sorted.clone(), *lang, (*count, *num));
-                            }
-                        },
-                        _ => {},
+                        }
+                        _ => {}
                     }
                 }
             })
