@@ -5,7 +5,7 @@ use std::{cell::RefCell, sync::Arc, env};
 extern crate lazy_static;
 extern crate serde_derive;
 extern crate toml;
-
+use std::iter::FromIterator;
 use serenity::{
     client::{
         bridge::gateway::{ShardId, ShardManager},
@@ -26,6 +26,7 @@ use serenity::{
     utils::{content_safe, ContentSafeOptions, MessageBuilder},
 };
 use crate::bot_activity::Status::Holding;
+use std::collections::BTreeMap;
 
 group!({
     name: "quiz",
@@ -305,6 +306,7 @@ fn main() {
                                     ),
                                 )
                                 .expect("fail to post");
+                            *bot_activity::CONTEST_REUSLT.write().unwrap().entry(msg.author.name.clone()).or_insert(0) += 1;
                             Ok((*lang, count-1))
                         },
                         _ => Err(false),
@@ -313,13 +315,27 @@ fn main() {
 
                 if let Ok((_, count)) = flag {
                     if count == 0 {
-                        msg.channel_id
-                            .say(
-                                &ctx,
+                        if let Ok(guard) = bot_activity::CONTEST_REUSLT.read() {
+                            let mut v = Vec::from_iter(guard.iter());
+                            v.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
+                            msg.channel_id
+                                .say(
+                                    &ctx,
                                     "コンテストが終了しました。",
-                            )
-                            .expect("fail to post");
+                                )
+                                .expect("fail to post");
+                            for (name, ac) in &v {
+                                msg.channel_id
+                                    .say(
+                                        &ctx,
+                                        format!("{} AC: {}", ac, name),
+                                    )
+                                    .expect("fail to post");
+                            }
+                            drop(v);
+                        }
                         *bot_activity::QUIZ.write().unwrap() = bot_activity::Status::StandingBy;
+                        *bot_activity::CONTEST_REUSLT.write().unwrap() = std::collections::BTreeMap::new();
                         return;
                     }
                 }
