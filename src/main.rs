@@ -1,6 +1,6 @@
 //#![feature(async_await)]
 use rand::distributions::{Distribution, Uniform};
-use std::{cell::RefCell, sync::Arc, env};
+use std::{env};
 #[macro_use]
 extern crate lazy_static;
 extern crate serde_derive;
@@ -25,8 +25,8 @@ use serenity::{
     prelude::*,
     utils::{content_safe, ContentSafeOptions, MessageBuilder},
 };
-use crate::bot_activity::Status::Holding;
-use std::collections::BTreeMap;
+
+
 
 group!({
     name: "quiz",
@@ -58,8 +58,6 @@ pub mod dictionary {
     use std::{
         env,
         path::Path,
-        fs,
-        io::{BufRead, BufReader},
     };
 
     #[derive(Serialize, Deserialize, Debug)]
@@ -218,7 +216,7 @@ pub mod dictionary {
 
 pub mod bot_activity {
 
-    use std::result::Result;
+    
     use std::sync::RwLock;
     use std::collections::BTreeMap;
 
