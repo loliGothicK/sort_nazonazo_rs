@@ -13,3 +13,7 @@ indexmap = "1.2.0"
 rand = "0.7.0"
 threadpool = "1.7.1"
 lazy_static = "1.4.0"
+tokio = { git = "https://github.com/tokio-rs/tokio" }
+serde = ">=1.0"
+serde_derive = ">=1.0"
+toml = "0.5"
