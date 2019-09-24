@@ -301,6 +301,7 @@ fn main() {
                     || command_name == "fr"
                     || command_name == "de"
                     || command_name == "it"
+                    || command_name == "contest"
                 {
                     match &*bot::QUIZ.lock().unwrap() {
                         bot::Status::Holding(_, ref sorted, _) => {
@@ -361,7 +362,7 @@ fn main() {
                                 .unwrap()
                                 .entry(msg.author.name.clone())
                                 .or_insert(0) += 1;
-                            if count > num {
+                            if count >= num {
                                 if let Ok(guard) = bot::CONTEST_REUSLT.read() {
                                     let mut v = Vec::from_iter(guard.iter());
                                     v.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
@@ -380,14 +381,15 @@ fn main() {
                                 }
                                 *bot::CONTEST_REUSLT.write().unwrap() =
                                     std::collections::BTreeMap::new();
+                                *guard = bot::Status::StandingBy;
                             } else {
                                 let (ans, sorted) =
-                                    contest_continue(ctx, &msg, *lang, *count, *num);
+                                    contest_continue(ctx, &msg, *lang, *count + 1, *num);
                                 *guard = bot::Status::Contesting(
                                     ans.clone(),
                                     sorted.clone(),
                                     *lang,
-                                    (*count, *num),
+                                    (*count + 1, *num),
                                 );
                             }
                         }
@@ -491,9 +493,27 @@ fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
 
 #[command]
 fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
+    let first = args.single::<String>();
+    let second =args.single::<u32>();
+    match first {
+        Ok(ref x) if x == &"unrated".to_string() => {
+            *bot::QUIZ.lock().unwrap() = bot::Status::StandingBy;
+            return Ok(());
+        },
+        _ => {},
+    };
     if !msg.author.bot {
-        match (args.single::<String>(), args.single::<u32>()) {
+        match (first, second) {
             (Ok(lang), Ok(num)) => {
+                if num == 0 {
+                    msg.channel_id
+                        .say(
+                            &ctx,
+                            "0問のコンテストは開催できません！"
+                        )
+                        .expect("fail to post");
+                    return Ok(());
+                }
                 let (dic, lang) = match lang {
                     en if en == "en" => (&*dictionary::ENGLISH, bot::Lang::En),
                     ja if ja == "ja" => (&*dictionary::JAPANESE, bot::Lang::Ja),
