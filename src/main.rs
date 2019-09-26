@@ -27,6 +27,7 @@ use serenity::{
     utils::{content_safe, ContentSafeOptions, MessageBuilder},
 };
 use std::iter::FromIterator;
+use std::collections::BTreeMap;
 
 pub mod dictionary;
 
@@ -335,12 +336,9 @@ fn main() {
 fn en(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~en' by user '{}'", msg.author.name);
     if !msg.author.bot {
-        loop {
-            if let Ok(mut guard) = bot::QUIZ.lock() {
-                let (ans, sorted) = prob(ctx, &msg, bot::Lang::En);
-                *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::En);
-                break;
-            }
+        if let Ok(mut guard) = bot::QUIZ.lock() {
+            let (ans, sorted) = prob(ctx, &msg, bot::Lang::En);
+            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::En);
         }
     };
     Ok(())
@@ -350,12 +348,9 @@ fn en(ctx: &mut Context, msg: &Message) -> CommandResult {
 fn ja(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~ja' by user '{}'", msg.author.name);
     if !msg.author.bot {
-        loop {
-            if let Ok(mut guard) = bot::QUIZ.lock() {
-                let (ans, sorted) = prob(ctx, &msg, bot::Lang::Ja);
-                *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::Ja);
-                break;
-            }
+        if let Ok(mut guard) = bot::QUIZ.lock() {
+            let (ans, sorted) = prob(ctx, &msg, bot::Lang::Ja);
+            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::Ja);
         }
     };
     Ok(())
@@ -364,12 +359,9 @@ fn ja(ctx: &mut Context, msg: &Message) -> CommandResult {
 fn fr(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~fr' by user '{}'", msg.author.name);
     if !msg.author.bot {
-        loop {
-            if let Ok(mut guard) = bot::QUIZ.lock() {
-                let (ans, sorted) = prob(ctx, &msg, bot::Lang::Fr);
-                *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::Fr);
-                break;
-            }
+        if let Ok(mut guard) = bot::QUIZ.lock() {
+            let (ans, sorted) = prob(ctx, &msg, bot::Lang::Fr);
+            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::Fr);
         }
     };
     Ok(())
@@ -378,12 +370,9 @@ fn fr(ctx: &mut Context, msg: &Message) -> CommandResult {
 fn de(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~de' by user '{}'", msg.author.name);
     if !msg.author.bot {
-        loop {
-            if let Ok(mut guard) = bot::QUIZ.lock() {
-                let (ans, sorted) = prob(ctx, &msg, bot::Lang::De);
-                *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::De);
-                break;
-            }
+        if let Ok(mut guard) = bot::QUIZ.lock() {
+            let (ans, sorted) = prob(ctx, &msg, bot::Lang::De);
+            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::De);
         }
     };
     Ok(())
@@ -393,11 +382,8 @@ fn it(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~it' by user '{}'", msg.author.name);
     if !msg.author.bot {
         let (ans, sorted) = prob(ctx, &msg, bot::Lang::It);
-        loop {
-            if let Ok(mut guard) = bot::QUIZ.lock() {
-                *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::It);
-                break;
-            }
+        if let Ok(mut guard) = bot::QUIZ.lock() {
+            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::It);
         }
     };
     Ok(())
@@ -559,6 +545,7 @@ fn unrated(ctx: &mut Context, msg: &Message) -> CommandResult {
                     )
                     .expect("fail to post");
                 *guard = bot::Status::StandingBy;
+                *bot::CONTEST_REUSLT.write().unwrap() = std::collections::BTreeMap::new();
             } else {
                 msg.channel_id
                     .say(
