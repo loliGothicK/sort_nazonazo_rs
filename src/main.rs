@@ -29,8 +29,8 @@ use serenity::{
     prelude::*,
     utils::{content_safe, ContentSafeOptions, MessageBuilder},
 };
-use std::iter::FromIterator;
 use std::collections::BTreeMap;
+use std::iter::FromIterator;
 
 pub mod dictionary;
 
@@ -180,7 +180,11 @@ fn prob(ctx: &mut Context, msg: &Message, lang: bot::Lang) -> (String, String) {
     msg.channel_id
         .say(
             &ctx,
-            format!("ソートなぞなぞ ソート前の {as_str} な〜んだ？\n{prob}", as_str = lang.as_string(), prob = sorted),
+            format!(
+                "ソートなぞなぞ ソート前の {as_str} な〜んだ？\n{prob}",
+                as_str = lang.as_string(),
+                prob = sorted
+            ),
         )
         .expect("fail to post");
     (ans.clone(), sorted.clone())
@@ -437,17 +441,20 @@ fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
                 let (ans, sorted) = contest_continue(ctx, &msg, lang, count, num);
                 loop {
                     if let Ok(mut guard) = bot::QUIZ.lock() {
-                        *guard = bot::Status::Contesting(ans.clone(), sorted.clone(), lang, (count, num));
+                        *guard = bot::Status::Contesting(
+                            ans.clone(),
+                            sorted.clone(),
+                            lang,
+                            (count, num),
+                        );
                         break;
                     }
                 }
             }
-            None => {
-                loop {
-                    if let Ok(mut guard) = bot::QUIZ.lock() {
-                        *guard = bot::Status::StandingBy;
-                        break;
-                    }
+            None => loop {
+                if let Ok(mut guard) = bot::QUIZ.lock() {
+                    *guard = bot::Status::StandingBy;
+                    break;
                 }
             },
         }
@@ -465,19 +472,13 @@ fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
             (Ok(lang), Ok(mut num)) => {
                 if num == 0 {
                     msg.channel_id
-                        .say(
-                            &ctx,
-                            "0問のコンテストは開催できません！"
-                        )
+                        .say(&ctx, "0問のコンテストは開催できません！")
                         .expect("fail to post");
                     return Ok(());
                 }
                 if num > 100 {
                     msg.channel_id
-                        .say(
-                            &ctx,
-                            format!("{}問は多すぎるので100問にしますね！", num)
-                        )
+                        .say(&ctx, format!("{}問は多すぎるので100問にしますね！", num))
                         .expect("fail to post");
                     num = 100;
                 }
@@ -506,7 +507,8 @@ fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
                     .expect("fail to post");
                 loop {
                     if let Ok(mut guard) = bot::QUIZ.lock() {
-                        *guard = bot::Status::Contesting(ans.clone(), sorted.clone(), lang, (1, num));
+                        *guard =
+                            bot::Status::Contesting(ans.clone(), sorted.clone(), lang, (1, num));
                         break;
                     }
                 }
@@ -542,19 +544,13 @@ fn unrated(ctx: &mut Context, msg: &Message) -> CommandResult {
         if let Ok(mut guard) = bot::QUIZ.lock() {
             if guard.is_contesting() {
                 msg.channel_id
-                    .say(
-                        &ctx,
-                        "コンテストを中止します。",
-                    )
+                    .say(&ctx, "コンテストを中止します。")
                     .expect("fail to post");
                 *guard = bot::Status::StandingBy;
                 *bot::CONTEST_REUSLT.write().unwrap() = std::collections::BTreeMap::new();
             } else {
                 msg.channel_id
-                    .say(
-                        &ctx,
-                        "現在コンテストは開催されていません。",
-                    )
+                    .say(&ctx, "現在コンテストは開催されていません。")
                     .expect("fail to post");
             }
             break;
@@ -571,7 +567,9 @@ fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
             loop {
                 if let Ok(guard) = bot::QUIZ.lock() {
                     if guard.is_holding() || guard.is_contesting() {
-                        let mut g = UnicodeSegmentation::graphemes(guard.ans().unwrap().as_str(), true).collect::<Vec<&str>>();
+                        let mut g =
+                            UnicodeSegmentation::graphemes(guard.ans().unwrap().as_str(), true)
+                                .collect::<Vec<&str>>();
                         if len < g.len() {
                             g.truncate(len);
                             msg.channel_id
@@ -584,22 +582,14 @@ fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
                                     ),
                                 )
                                 .expect("fail to post");
-                        }
-                        else {
+                        } else {
                             msg.channel_id
-                                .say(
-                                    &ctx,
-                                    "ヒントが単語より長過いわ、ボケ",
-                                )
+                                .say(&ctx, "ヒントが単語より長過いわ、ボケ")
                                 .expect("fail to post");
                         }
-                    }
-                    else {
+                    } else {
                         msg.channel_id
-                            .say(
-                                &ctx,
-                                "現在問題は出ていません。",
-                            )
+                            .say(&ctx, "現在問題は出ていません。")
                             .expect("fail to post");
                     }
                     break;
@@ -619,7 +609,8 @@ fn help(ctx: &mut Context, msg: &Message) -> CommandResult {
         msg.channel_id
             .say(
                 &ctx,
-                format!(r#"
+                format!(
+                    r#"
 sort_nazonazo v{version}
 mitama <yussa.de.dannann@gmail.com>
 
@@ -644,7 +635,9 @@ USEGE [EXTRA]:
     ~help:
     => 今あなたが使ったコマンドです。見てのとおりです。
                 "#,
-                        version = VERSION))
+                    version = VERSION
+                ),
+            )
             .expect("fail to post");
     }
     Ok(())

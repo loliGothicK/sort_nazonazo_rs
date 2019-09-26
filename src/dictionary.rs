@@ -1,10 +1,10 @@
 use indexmap::IndexMap;
 use itertools::Itertools;
 use serde_derive::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Read;
 use std::{env, path::Path};
-use std::collections::BTreeMap;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct RawDictionary {
@@ -26,7 +26,8 @@ impl RawDictionary {
         // read config.toml
         let _ = f.read_to_string(&mut buffer).unwrap();
         // parse toml
-        let raw: RawDictionary = toml::from_slice(buffer.as_bytes()).expect("could not parse dictionary!");
+        let raw: RawDictionary =
+            toml::from_slice(buffer.as_bytes()).expect("could not parse dictionary!");
         Ok(raw)
     }
 
@@ -75,14 +76,17 @@ impl Into<Dictionary> for RawDictionary {
         if let Some(fully) = &self.full {
             let mut full_dic: BTreeMap<String, Vec<String>> = BTreeMap::new();
             for word in fully {
-                full_dic.entry(word.clone())
-                    .and_modify(|e| { e.push(
-                        word.clone()
-                            .chars()
-                            .into_iter()
-                            .sorted()
-                            .collect::<String>()
-                    )})
+                full_dic
+                    .entry(word.clone())
+                    .and_modify(|e| {
+                        e.push(
+                            word.clone()
+                                .chars()
+                                .into_iter()
+                                .sorted()
+                                .collect::<String>(),
+                        )
+                    })
                     .or_insert(vec![word.clone()]);
             }
             full_dictionary = Some(full_dic);
@@ -112,14 +116,15 @@ impl<F: Fn(&String) -> String> Into<Dictionary> for CustomRawDictionary<F> {
         if let Some(fully) = &self.full {
             let mut full_dic: BTreeMap<String, Vec<String>> = BTreeMap::new();
             for word in fully {
-                full_dic.entry(word.clone())
+                full_dic
+                    .entry(word.clone())
                     .and_modify(|e| {
                         e.push(
                             (&self.before)(word)
                                 .chars()
                                 .into_iter()
                                 .sorted()
-                                .collect::<String>()
+                                .collect::<String>(),
                         )
                     })
                     .or_insert(vec![word.clone()]);
@@ -151,11 +156,10 @@ lazy_static! {
         dictionary
     };
     pub static ref GERMAN: Dictionary = {
-        let mut dictionary: Dictionary
-            = RawDictionary::from_toml("german.toml")
-                .unwrap()
-                .before(|word| word.to_ascii_lowercase())
-                .into();
+        let mut dictionary: Dictionary = RawDictionary::from_toml("german.toml")
+            .unwrap()
+            .before(|word| word.to_ascii_lowercase())
+            .into();
         println!("GERMAN is loaded: len = {}", dictionary.questions.len());
         dictionary
     };
