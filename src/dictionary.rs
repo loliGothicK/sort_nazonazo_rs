@@ -141,22 +141,22 @@ impl<F: Fn(&String) -> String> Into<Dictionary> for CustomRawDictionary<F> {
 
 lazy_static! {
     pub static ref ENGLISH: Dictionary = {
-        let mut dictionary: Dictionary = RawDictionary::from_toml("english.toml").unwrap().into();
+        let dictionary: Dictionary = RawDictionary::from_toml("english.toml").unwrap().into();
         println!("ENGLISH is loaded: len = {}", dictionary.questions.len());
         dictionary
     };
     pub static ref JAPANESE: Dictionary = {
-        let mut dictionary: Dictionary = RawDictionary::from_toml("japanese.toml").unwrap().into();
+        let dictionary: Dictionary = RawDictionary::from_toml("japanese.toml").unwrap().into();
         println!("JAPANESE is loaded: len = {}", dictionary.questions.len());
         dictionary
     };
     pub static ref FRENCH: Dictionary = {
-        let mut dictionary: Dictionary = RawDictionary::from_toml("french.toml").unwrap().into();
+        let dictionary: Dictionary = RawDictionary::from_toml("french.toml").unwrap().into();
         println!("FRENCH is loaded: len = {}", dictionary.questions.len());
         dictionary
     };
     pub static ref GERMAN: Dictionary = {
-        let mut dictionary: Dictionary = RawDictionary::from_toml("german.toml")
+        let dictionary: Dictionary = RawDictionary::from_toml("german.toml")
             .unwrap()
             .before(|word| word.to_ascii_lowercase())
             .into();
@@ -164,7 +164,7 @@ lazy_static! {
         dictionary
     };
     pub static ref ITALIAN: Dictionary = {
-        let mut dictionary: Dictionary = RawDictionary::from_toml("italian.toml").unwrap().into();
+        let dictionary: Dictionary = RawDictionary::from_toml("italian.toml").unwrap().into();
         println!("ITALIAN is loaded: len = {}", dictionary.questions.len());
         dictionary
     };

@@ -29,7 +29,7 @@ use serenity::{
     prelude::*,
     utils::{content_safe, ContentSafeOptions, MessageBuilder},
 };
-use std::collections::BTreeMap;
+
 use std::iter::FromIterator;
 
 pub mod dictionary;
@@ -466,7 +466,7 @@ fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
 fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     println!("Got command '~contest' by user '{}'", msg.author.name);
     let first = args.single::<String>();
-    let mut second = args.single::<u32>();
+    let second = args.single::<u32>();
     if !msg.author.bot {
         match (first, second) {
             (Ok(lang), Ok(mut num)) => {
