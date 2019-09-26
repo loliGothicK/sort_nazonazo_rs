@@ -5,6 +5,9 @@ use std::env;
 extern crate lazy_static;
 extern crate serde_derive;
 extern crate toml;
+extern crate unicode_segmentation;
+
+use unicode_segmentation::UnicodeSegmentation;
 //extern crate nazonazo_macros;
 
 use serenity::{
@@ -568,16 +571,16 @@ fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
             loop {
                 if let Ok(guard) = bot::QUIZ.lock() {
                     if guard.is_holding() || guard.is_contesting() {
-                        if len < guard.ans().unwrap().len() {
-                            let mut hint = guard.ans().unwrap().clone();
-                            hint.truncate(len);
+                        let mut g = UnicodeSegmentation::graphemes(guard.ans().unwrap().as_str(), true).collect::<Vec<&str>>();
+                        if len < g.len() {
+                            g.truncate(len);
                             msg.channel_id
                                 .say(
                                     &ctx,
                                     format!(
                                         "{len}文字のヒント、答えの先頭 {len} 文字は...\n\"{hint}\"\nです！",
                                         len = len,
-                                        hint = hint,
+                                        hint = g.into_iter().collect::<String>(),
                                     ),
                                 )
                                 .expect("fail to post");
