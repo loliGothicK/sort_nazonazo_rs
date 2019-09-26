@@ -5,6 +5,7 @@ use std::env;
 extern crate lazy_static;
 extern crate serde_derive;
 extern crate toml;
+//extern crate nazonazo_macros;
 
 use serenity::{
     client::{
@@ -27,10 +28,49 @@ use serenity::{
 };
 use std::iter::FromIterator;
 
+pub mod dictionary;
+
+macro_rules! count {
+    ( $x:ident ) => (1usize);
+    ( $x:ident, $($xs:tt)* ) => (1usize + count!($($xs)*));
+}
+
+macro_rules! quiz_commands {
+    () => {};
+    ( $( $commands:ident ),+ ) => {
+        group!({
+            name: "quiz",
+            options: {},
+            commands: [$($commands),+],
+        });
+        const COMMAND_NUM: usize = count!($($commands),+);
+        lazy_static! {
+            pub static ref QUIZ_COMMANDS: [String; COMMAND_NUM] = [$(stringify!($commands).to_string(),)+];
+        }
+    };
+}
+
+quiz_commands!(en, ja, fr, de, it);
+/*
+quiz_commands! {
+    en: {
+        dictionary = english,
+    },
+    ja: {
+        dictionary = japanese,
+    },
+    fr: {
+        dictionary = french,
+    },
+    de: {
+        dictionary = german,
+    },
+};
+*/
 group!({
-    name: "quiz",
+    name: "extra",
     options: {},
-    commands: [en, ja, fr, de, giveup],
+    commands: [giveup, hint],
 });
 
 group!({
@@ -38,173 +78,18 @@ group!({
     options: {},
     commands: [contest, unrated],
 });
+
+group!({
+    name: "help",
+    options: {},
+    commands: [help],
+});
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 struct Handler;
 
 impl EventHandler for Handler {
     fn ready(&self, _: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
-    }
-}
-
-pub mod dictionary {
-    use indexmap::IndexMap;
-    use itertools::Itertools;
-    use serde_derive::{Deserialize, Serialize};
-    use std::fs::File;
-    use std::io::Read;
-    use std::{env, path::Path};
-
-    #[derive(Serialize, Deserialize, Debug)]
-    struct Dictionaries {
-        pub questions: Vec<String>,
-        pub full: Option<Vec<String>>,
-    }
-
-    pub enum Dictionary {
-        Japanese(IndexMap<String, String>),
-        English(IndexMap<String, String>),
-        French(IndexMap<String, String>),
-        German(IndexMap<String, String>),
-        Italian(IndexMap<String, String>),
-    }
-
-    impl Dictionary {
-        pub fn get_index(&self, idx: usize) -> Option<(&String, &String)> {
-            match &self {
-                Dictionary::Japanese(dic) => dic.get_index(idx),
-                Dictionary::English(dic) => dic.get_index(idx),
-                Dictionary::French(dic) => dic.get_index(idx),
-                Dictionary::German(dic) => dic.get_index(idx),
-                Dictionary::Italian(dic) => dic.get_index(idx),
-            }
-        }
-
-        pub fn len(&self) -> usize {
-            match &self {
-                Dictionary::Japanese(dic) => dic.len(),
-                Dictionary::English(dic) => dic.len(),
-                Dictionary::French(dic) => dic.len(),
-                Dictionary::German(dic) => dic.len(),
-                Dictionary::Italian(dic) => dic.len(),
-            }
-        }
-    }
-
-    lazy_static! {
-        pub static ref ENGLISH: Dictionary = {
-            let mut f = match env::var("DIC_DIR") {
-                Ok(path) => File::open(Path::new(&path).join("english.toml")).expect("file not found"),
-                Err(e) => panic!(e),
-            };
-            let mut conf = String::new();
-            // config file open
-            // read config.toml
-            let _ = f.read_to_string(&mut conf).unwrap();
-            // parse toml
-            let config: Dictionaries = toml::from_slice(conf.as_bytes()).unwrap();
-
-            let mut dictionary = IndexMap::new();
-            for word in config.questions {
-                dictionary.insert(
-                    word.clone(),
-                    word.clone()
-                        .chars()
-                        .into_iter()
-                        .sorted()
-                        .collect::<String>(),
-                );
-            }
-            Dictionary::English(dictionary)
-        };
-        pub static ref JAPANESE: Dictionary = {
-            let mut conf = String::new();
-            // config file open
-            let mut f = env::var("DIC_DIR").map(|path| File::open(Path::new(&path).join("japanese.toml")).expect("file not found")).unwrap();
-            // read config.toml
-            let _ = f.read_to_string(&mut conf).unwrap();
-            // parse toml
-            let config: Dictionaries = toml::from_slice(conf.as_bytes()).unwrap();
-
-            let mut dictionary = IndexMap::new();
-            for word in config.questions {
-                dictionary.insert(
-                    word.clone(),
-                    word.clone()
-                        .chars()
-                        .into_iter()
-                        .sorted()
-                        .collect::<String>(),
-                );
-            }
-            Dictionary::Japanese(dictionary)
-        };
-        pub static ref FRENCH: Dictionary = {
-            let mut conf = String::new();
-            // config file open
-            let mut f = env::var("DIC_DIR").map(|path| File::open(Path::new(&path).join("french.toml")).expect("file not found")).unwrap();
-            // read config.toml
-            let _ = f.read_to_string(&mut conf).unwrap();
-            // parse toml
-            let config: Dictionaries = toml::from_slice(conf.as_bytes()).unwrap();
-
-            let mut dictionary = IndexMap::new();
-            for word in config.questions {
-                dictionary.insert(
-                    word.clone(),
-                    word.clone()
-                        .chars()
-                        .into_iter()
-                        .sorted()
-                        .collect::<String>(),
-                );
-            }
-            Dictionary::French(dictionary)
-        };
-        pub static ref GERMAN: Dictionary = {
-            let mut conf = String::new();
-            // config file open
-            let mut f = env::var("DIC_DIR").map(|path| File::open(Path::new(&path).join("german.toml")).expect("file not found")).unwrap();
-            // read config.toml
-            let _ = f.read_to_string(&mut conf).unwrap();
-            // parse toml
-            let config: Dictionaries = toml::from_slice(conf.as_bytes()).unwrap();
-
-            let mut dictionary = IndexMap::new();
-            for word in config.questions {
-                dictionary.insert(
-                    word.clone(),
-                    word.clone()
-                        .to_lowercase()
-                        .chars()
-                        .into_iter()
-                        .sorted()
-                        .collect::<String>(),
-                );
-            }
-            Dictionary::German(dictionary)
-        };
-        pub static ref ITALIAN: Dictionary = {
-            let mut conf = String::new();
-            // config file open
-            let mut f = env::var("DIC_DIR").map(|path| File::open(Path::new(&path).join("italian.toml")).expect("file not found")).unwrap();
-            // read config.toml
-            let _ = f.read_to_string(&mut conf).unwrap();
-            // parse toml
-            let config: Dictionaries = toml::from_slice(conf.as_bytes()).unwrap();
-
-            let mut dictionary = IndexMap::new();
-            for word in config.questions {
-                dictionary.insert(
-                    word.clone(),
-                    word.clone()
-                        .chars()
-                        .into_iter()
-                        .sorted()
-                        .collect::<String>(),
-                );
-            }
-            Dictionary::Italian(dictionary)
-        };
     }
 }
 
@@ -221,6 +106,18 @@ pub mod bot {
         Fr,
         De,
         It,
+    }
+
+    impl Lang {
+        pub fn as_string(&self) -> String {
+            match self {
+                Lang::En => "英単語".to_string(),
+                Lang::Ja => "単語".to_string(),
+                Lang::Fr => "仏単語".to_string(),
+                Lang::De => "独単語".to_string(),
+                Lang::It => "伊単語".to_string(),
+            }
+        }
     }
 
     pub enum Status {
@@ -248,6 +145,14 @@ pub mod bot {
                 _ => false,
             }
         }
+
+        pub fn ans(&self) -> std::result::Result<&String, ()> {
+            match self {
+                Status::StandingBy => Err(()),
+                Status::Holding(ans, ..) => Ok(ans),
+                Status::Contesting(ans, ..) => Ok(ans),
+            }
+        }
     }
 
     lazy_static! {
@@ -257,6 +162,7 @@ pub mod bot {
 }
 
 fn prob(ctx: &mut Context, msg: &Message, lang: bot::Lang) -> (String, String) {
+    println!("called prob");
     let dic = match lang {
         bot::Lang::En => &*dictionary::ENGLISH,
         bot::Lang::Ja => &*dictionary::JAPANESE,
@@ -264,12 +170,13 @@ fn prob(ctx: &mut Context, msg: &Message, lang: bot::Lang) -> (String, String) {
         bot::Lang::De => &*dictionary::GERMAN,
         bot::Lang::It => &*dictionary::ITALIAN,
     };
+    println!("len = {}", dic.len());
     let gen = Uniform::new_inclusive(0, dic.len() - 1);
     let (ans, sorted) = dic.get_index(gen.sample(&mut rand::thread_rng())).unwrap();
     msg.channel_id
         .say(
             &ctx,
-            format!("ソートなぞなぞ ソート前の文字列な〜んだ？\n{}", sorted),
+            format!("ソートなぞなぞ ソート前の {as_str} な〜んだ？\n{prob}", as_str = lang.as_string(), prob = sorted),
         )
         .expect("fail to post");
     (ans.clone(), sorted.clone())
@@ -317,13 +224,7 @@ fn main() {
                     "Got command '{}' by user '{}'",
                     command_name, msg.author.name
                 );
-                if command_name == "en"
-                    || command_name == "ja"
-                    || command_name == "fr"
-                    || command_name == "de"
-                    || command_name == "it"
-                    || command_name == "contest"
-                {
+                if QUIZ_COMMANDS.contains(&command_name.to_string()) {
                     match &*bot::QUIZ.lock().unwrap() {
                         bot::Status::Holding(_, ref sorted, _) => {
                             msg.channel_id
@@ -419,7 +320,9 @@ fn main() {
                 }
             })
             .group(&QUIZ_GROUP)
-            .group(&CONTEST_GROUP),
+            .group(&CONTEST_GROUP)
+            .group(&HELP_GROUP)
+            .group(&EXTRA_GROUP),
     );
 
     // start listening for events by starting a single shard
@@ -430,44 +333,79 @@ fn main() {
 
 #[command]
 fn en(ctx: &mut Context, msg: &Message) -> CommandResult {
+    println!("Got command '~en' by user '{}'", msg.author.name);
     if !msg.author.bot {
-        let (ans, sorted) = prob(ctx, &msg, bot::Lang::En);
-        *bot::QUIZ.lock().unwrap() =
-            bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::En);
+        loop {
+            if let Ok(mut guard) = bot::QUIZ.lock() {
+                let (ans, sorted) = prob(ctx, &msg, bot::Lang::En);
+                *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::En);
+                break;
+            }
+        }
     };
     Ok(())
 }
 
 #[command]
 fn ja(ctx: &mut Context, msg: &Message) -> CommandResult {
+    println!("Got command '~ja' by user '{}'", msg.author.name);
     if !msg.author.bot {
-        let (ans, sorted) = prob(ctx, &msg, bot::Lang::Ja);
-        *bot::QUIZ.lock().unwrap() =
-            bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::Ja);
+        loop {
+            if let Ok(mut guard) = bot::QUIZ.lock() {
+                let (ans, sorted) = prob(ctx, &msg, bot::Lang::Ja);
+                *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::Ja);
+                break;
+            }
+        }
     };
     Ok(())
 }
 #[command]
 fn fr(ctx: &mut Context, msg: &Message) -> CommandResult {
+    println!("Got command '~fr' by user '{}'", msg.author.name);
     if !msg.author.bot {
-        let (ans, sorted) = prob(ctx, &msg, bot::Lang::Fr);
-        *bot::QUIZ.lock().unwrap() =
-            bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::Fr);
+        loop {
+            if let Ok(mut guard) = bot::QUIZ.lock() {
+                let (ans, sorted) = prob(ctx, &msg, bot::Lang::Fr);
+                *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::Fr);
+                break;
+            }
+        }
     };
     Ok(())
 }
 #[command]
 fn de(ctx: &mut Context, msg: &Message) -> CommandResult {
+    println!("Got command '~de' by user '{}'", msg.author.name);
     if !msg.author.bot {
-        let (ans, sorted) = prob(ctx, &msg, bot::Lang::De);
-        *bot::QUIZ.lock().unwrap() =
-            bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::De);
+        loop {
+            if let Ok(mut guard) = bot::QUIZ.lock() {
+                let (ans, sorted) = prob(ctx, &msg, bot::Lang::De);
+                *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::De);
+                break;
+            }
+        }
+    };
+    Ok(())
+}
+#[command]
+fn it(ctx: &mut Context, msg: &Message) -> CommandResult {
+    println!("Got command '~it' by user '{}'", msg.author.name);
+    if !msg.author.bot {
+        let (ans, sorted) = prob(ctx, &msg, bot::Lang::It);
+        loop {
+            if let Ok(mut guard) = bot::QUIZ.lock() {
+                *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::It);
+                break;
+            }
+        }
     };
     Ok(())
 }
 
 #[command]
 fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
+    println!("Got command '~giveup' by user '{}'", msg.author.name);
     if !msg.author.bot {
         let flag: Option<(bot::Lang, (u32, u32))> = match &*bot::QUIZ.lock().unwrap() {
             bot::Status::Holding(ans, _, _) => {
@@ -495,7 +433,12 @@ fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
                 msg.channel_id
                     .say(&ctx, format!("{}問連続のコンテストが終了しました。", num))
                     .expect("fail to post");
-                *bot::QUIZ.lock().unwrap() = bot::Status::StandingBy;
+                loop {
+                    if let Ok(mut guard) = bot::QUIZ.lock() {
+                        *guard = bot::Status::StandingBy;
+                        break;
+                    }
+                }
                 return Ok(());
             }
         }
@@ -503,10 +446,21 @@ fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
         match flag {
             Some((lang, (count, num))) => {
                 let (ans, sorted) = contest_continue(ctx, &msg, lang, count, num);
-                *bot::QUIZ.lock().unwrap() =
-                    bot::Status::Contesting(ans.clone(), sorted.clone(), lang, (count, num));
+                loop {
+                    if let Ok(mut guard) = bot::QUIZ.lock() {
+                        *guard = bot::Status::Contesting(ans.clone(), sorted.clone(), lang, (count, num));
+                        break;
+                    }
+                }
             }
-            None => *bot::QUIZ.lock().unwrap() = bot::Status::StandingBy,
+            None => {
+                loop {
+                    if let Ok(mut guard) = bot::QUIZ.lock() {
+                        *guard = bot::Status::StandingBy;
+                        break;
+                    }
+                }
+            },
         }
     }
     Ok(())
@@ -514,6 +468,7 @@ fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
 
 #[command]
 fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
+    println!("Got command '~contest' by user '{}'", msg.author.name);
     let first = args.single::<String>();
     let mut second = args.single::<u32>();
     if !msg.author.bot {
@@ -560,8 +515,12 @@ fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
                         ),
                     )
                     .expect("fail to post");
-                *bot::QUIZ.lock().unwrap() =
-                    bot::Status::Contesting(ans.clone(), sorted.clone(), lang, (1, num));
+                loop {
+                    if let Ok(mut guard) = bot::QUIZ.lock() {
+                        *guard = bot::Status::Contesting(ans.clone(), sorted.clone(), lang, (1, num));
+                        break;
+                    }
+                }
             }
             (Err(e), Err(f)) => {
                 msg.channel_id
@@ -589,24 +548,114 @@ fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
 
 #[command]
 fn unrated(ctx: &mut Context, msg: &Message) -> CommandResult {
-    if let Ok(mut guard) = bot::QUIZ.lock() {
-        if guard.is_contesting() {
-            msg.channel_id
-                .say(
-                    &ctx,
-                    "コンテストを中止します。",
-                )
-                .expect("fail to post");
-            *guard = bot::Status::StandingBy;
+    println!("Got command '~unrated' by user '{}'", msg.author.name);
+    loop {
+        if let Ok(mut guard) = bot::QUIZ.lock() {
+            if guard.is_contesting() {
+                msg.channel_id
+                    .say(
+                        &ctx,
+                        "コンテストを中止します。",
+                    )
+                    .expect("fail to post");
+                *guard = bot::Status::StandingBy;
+            } else {
+                msg.channel_id
+                    .say(
+                        &ctx,
+                        "現在コンテストは開催されていません。",
+                    )
+                    .expect("fail to post");
+            }
+            break;
         }
-        else {
-            msg.channel_id
-                .say(
-                    &ctx,
-                    "現在コンテストは開催されていません。",
-                )
-                .expect("fail to post");
+    }
+    Ok(())
+}
+
+#[command]
+fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
+    println!("Got command '~hint' by user '{}'", msg.author.name);
+    if !msg.author.bot {
+        if let Ok(len) = args.single::<usize>() {
+            loop {
+                if let Ok(guard) = bot::QUIZ.lock() {
+                    if guard.is_holding() || guard.is_contesting() {
+                        if len < guard.ans().unwrap().len() {
+                            let mut hint = guard.ans().unwrap().clone();
+                            hint.truncate(len);
+                            msg.channel_id
+                                .say(
+                                    &ctx,
+                                    format!(
+                                        "{len}文字のヒント、答えの先頭 {len} 文字は...\n\"{hint}\"\nです！",
+                                        len = len,
+                                        hint = hint,
+                                    ),
+                                )
+                                .expect("fail to post");
+                        }
+                        else {
+                            msg.channel_id
+                                .say(
+                                    &ctx,
+                                    "ヒントが単語より長過いわ、ボケ",
+                                )
+                                .expect("fail to post");
+                        }
+                    }
+                    else {
+                        msg.channel_id
+                            .say(
+                                &ctx,
+                                "現在問題は出ていません。",
+                            )
+                            .expect("fail to post");
+                    }
+                    break;
+                }
+            }
         }
+    };
+
+    Ok(())
+}
+
+#[command]
+fn help(ctx: &mut Context, msg: &Message) -> CommandResult {
+    println!("Got command '~help' by user '{}'", msg.author.name);
+
+    if !msg.author.bot {
+        msg.channel_id
+            .say(
+                &ctx,
+                format!(r#"
+sort_nazonazo v{version}
+mitama <yussa.de.dannann@gmail.com>
+
+USAGE [QUIZ]:
+    ~{{LANG}}: LANG=[en|ja|fr|de|it]
+    => その言語で単体のクイズが出ます
+
+    ~giveup:
+    => 一問を諦めて答えを見ることができます（出題状態はキャンセルされます）。
+
+    ~hint {{NUM>=answer length}}:
+    => 答えの最初のNUM文字をヒントとして見ることができます。
+
+USAGE [CONTEST]:
+    ~contest {{LANG}} {{NUM<=100}}: LANG=[en|ja|fr|de|it]
+    => 言語オンリー連続出題を行います
+
+    ~unrated:
+    => コンテストを中止します
+
+USEGE [EXTRA]:
+    ~help:
+    => 今あなたが使ったコマンドです。見てのとおりです。
+                "#,
+                        version = VERSION))
+            .expect("fail to post");
     }
     Ok(())
 }
