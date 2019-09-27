@@ -7,9 +7,15 @@ extern crate serde_derive;
 extern crate toml;
 extern crate unicode_segmentation;
 extern crate regex;
+#[macro_use]
+extern crate validator_derive;
+extern crate validator;
 
+// A trait that the Validate derive will impl
+use validator::{Validate, ValidationError, ValidationErrors, ValidationErrorsKind};
 use unicode_segmentation::UnicodeSegmentation;
 //extern crate nazonazo_macros;
+use regex::Regex;
 
 use serenity::{
     client::{
@@ -36,6 +42,10 @@ use std::io::{BufWriter, Write};
 use std::fs::File;
 use std::str::from_utf8;
 use regex::internal::Input;
+use tokio::future::err;
+use std::collections::HashMap;
+use serde_derive::{Serialize, Deserialize};
+use itertools::Itertools;
 
 pub mod dictionary;
 
@@ -46,15 +56,16 @@ macro_rules! count {
 
 macro_rules! quiz_commands {
     () => {};
-    ( $( $commands:ident ),+ ) => {
+    ( $command:ident, $( $commands:ident ),* ) => {
         group!({
             name: "quiz",
             options: {},
-            commands: [$($commands),+],
+            commands: [$command, $($commands),*],
         });
-        const COMMAND_NUM: usize = count!($($commands),+);
+        const COMMAND_NUM: usize = count!($($commands),*);
         lazy_static! {
-            pub static ref QUIZ_COMMANDS: [String; COMMAND_NUM] = [$(stringify!($commands).to_string(),)+];
+            pub static ref QUIZ_COMMANDS: [String; COMMAND_NUM] = [$(stringify!($commands).to_string(),)*];
+            pub static ref QUIZ_COMMANDS_REGEX: Regex = Regex::new(stringify!(($command $(|$commands)*))).unwrap();
         }
     };
 }
@@ -268,7 +279,7 @@ fn main() {
                 );
                 if QUIZ_COMMANDS.contains(&command_name.to_string()) {
                     match &*bot::QUIZ.lock().unwrap() {
-                        bot::Status::Holding(_, ref sorted, _) => {
+                        bot::Status::Holding(ref sorted, ..)=> {
                             msg.channel_id
                                 .say(
                                     &ctx,
@@ -277,7 +288,7 @@ fn main() {
                                 .expect("fail to post");
                             false
                         }
-                        bot::Status::Contesting(_, ref sorted, _, _) => {
+                        bot::Status::Contesting(ref sorted, ..) => {
                             msg.channel_id
                                 .say(&ctx, format!("現在コンテスト中です\n問題: {}", sorted))
                                 .expect("fail to post");
@@ -290,7 +301,6 @@ fn main() {
                 }
             })
             .normal_message(|ctx, msg| {
-                use regex::Regex;
                 let re = Regex::new(r"^kick\(.*\);$").unwrap();
                 if re.is_match(&msg.content) {
                     println!("{:?}", kick(ctx, msg));
@@ -487,37 +497,48 @@ fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
     Ok(())
 }
 
+#[derive(Debug, Validate, Deserialize)]
+struct ContestArgs {
+    #[validate(regex = "QUIZ_COMMANDS_REGEX")]
+    lang: String,
+    #[validate(range(min = 1, max = 100))]
+    num: usize,
+}
+
 #[command]
 fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     println!("Got command '~contest' by user '{}'", msg.author.name);
-    let first = args.single::<String>();
-    let second = args.single::<u32>();
     if !msg.author.bot {
-        match (first, second) {
-            (Ok(lang), Ok(mut num)) => {
-                if num == 0 {
-                    msg.channel_id
-                        .say(&ctx, "0問のコンテストは開催できません！")
-                        .expect("fail to post");
-                    return Ok(());
-                }
-                if num > 100 {
-                    msg.channel_id
-                        .say(&ctx, format!("{}問は多すぎるので100問にしますね！", num))
-                        .expect("fail to post");
-                    num = 100;
-                }
-                let (dic, lang) = match lang {
+        let first = args.single::<String>();
+        let second = args.single::<usize>();
+
+        let validated = match (first, second) {
+            (Ok(lang), Ok(num)) => {
+                dbg!(QUIZ_COMMANDS_REGEX.is_match(&lang));
+                let args = ContestArgs { lang, num };
+                args.validate().map(|()| args).map_err(|errs| {
+                    errs.errors().keys().join(",")
+                })
+            }
+            _ => {
+                Err("usage: ~contest [en|ja|fr|de|it] [num (1 < num <= 100)]".to_string())
+            }
+        };
+
+        match validated {
+            Ok(valid_args) => {
+                let ContestArgs {
+                    lang: lang_str,
+                    num: num,
+                } = valid_args;
+                let (dic, lang) = match lang_str {
                     en if en == "en" => (&*dictionary::ENGLISH, bot::Lang::En),
                     ja if ja == "ja" => (&*dictionary::JAPANESE, bot::Lang::Ja),
                     fr if fr == "fr" => (&*dictionary::FRENCH, bot::Lang::Fr),
                     de if de == "de" => (&*dictionary::GERMAN, bot::Lang::De),
                     it if it == "it" => (&*dictionary::ITALIAN, bot::Lang::It),
-                    _ => {
-                        return Ok(());
-                    }
+                    _ => { panic!("should not reach here!"); },
                 };
-
                 let gen = Uniform::new_inclusive(0, dic.len() - 1);
                 let (ans, sorted) = dic.get_index(gen.sample(&mut rand::thread_rng())).unwrap();
                 msg.channel_id
@@ -530,35 +551,18 @@ fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
                         ),
                     )
                     .expect("fail to post");
-                loop {
-                    if let Ok(mut guard) = bot::QUIZ.lock() {
-                        *guard =
-                            bot::Status::Contesting(ans.clone(), sorted.clone(), lang, (1, num));
-                        break;
-                    }
+                if let Ok(mut guard) = bot::QUIZ.lock() {
+                    *guard =
+                        bot::Status::Contesting(ans.clone(), sorted.clone(), lang, (1, num as u32));
                 }
-            }
-            (Err(e), Err(f)) => {
+            },
+            Err(e) => {
                 msg.channel_id
-                    .say(&ctx, format!("{:?}", e))
+                    .say(&ctx, e)
                     .expect("fail to post");
-                msg.channel_id
-                    .say(&ctx, format!("{:?}", f))
-                    .expect("fail to post");
-            }
-            (_, Err(f)) => {
-                msg.channel_id
-                    .say(&ctx, format!("{:?}", f))
-                    .expect("fail to post");
-            }
-            (Err(e), _) => {
-                msg.channel_id
-                    .say(&ctx, format!("{:?}", e))
-                    .expect("fail to post");
-            }
-        }
-    };
-
+            },
+        };
+    }
     Ok(())
 }
 
@@ -588,62 +592,74 @@ fn unrated(ctx: &mut Context, msg: &Message) -> CommandResult {
 fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     println!("Got command '~hint' by user '{}'", msg.author.name);
     if !msg.author.bot {
-        if let Ok(len) = args.single::<usize>() {
-            if let Ok(mut guard) = bot::QUIZ.lock() {
-                if guard.is_holding() || guard.is_contesting() {
-                    let mut g =
-                        UnicodeSegmentation::graphemes(guard.ans().unwrap().as_str(), true)
-                            .collect::<Vec<&str>>();
-                    match len {
-                        length if length < g.len() && length >= g.len() - 1 => {
-                            msg.channel_id
-                                .say(&ctx, "このヒントで答えが一意に定まるのでgiveupとみなします！")
-                                .expect("fail to post");
-                            match giveup_impl(ctx, msg, &*guard) {
-                                Some((_, (count, num))) if count > num => {
-                                    msg.channel_id
-                                        .say(&ctx, format!("{}問連続のコンテストが終了しました。", num))
-                                        .expect("fail to post");
+        match args.single::<usize>() {
+            Ok(len) => {
+                if let Ok(mut guard) = bot::QUIZ.lock() {
+                    if guard.is_holding() || guard.is_contesting() {
+                        let mut g =
+                            UnicodeSegmentation::graphemes(guard.ans().unwrap().as_str(), true)
+                                .collect::<Vec<&str>>();
+                        match len {
+                            length if length < g.len() && length >= g.len() - 1 => {
+                                msg.channel_id
+                                    .say(&ctx, "このヒントで答えが一意に定まるのでgiveupとみなします！")
+                                    .expect("fail to post");
+                                match giveup_impl(ctx, msg, &*guard) {
+                                    Some((_, (count, num))) if count > num => {
+                                        msg.channel_id
+                                            .say(&ctx, format!("{}問連続のコンテストが終了しました。", num))
+                                            .expect("fail to post");
                                         *guard = bot::Status::StandingBy;
-                                    return Ok(());
-                                },
-                                Some((lang, (count, num))) => {
-                                    let (ans, sorted) = contest_continue(ctx, &msg, lang, count, num);
-                                    *guard = bot::Status::Contesting(
-                                        ans.clone(),
-                                        sorted.clone(),
-                                        lang,
-                                        (count, num),
-                                    );
-                                },
-                                None => { *guard = bot::Status::StandingBy; },
+                                        return Ok(());
+                                    },
+                                    Some((lang, (count, num))) => {
+                                        let (ans, sorted) = contest_continue(ctx, &msg, lang, count, num);
+                                        *guard = bot::Status::Contesting(
+                                            ans.clone(),
+                                            sorted.clone(),
+                                            lang,
+                                            (count, num),
+                                        );
+                                    },
+                                    None => { *guard = bot::Status::StandingBy; },
+                                }
+                            },
+                            length if length == 0usize => {
+                                msg.channel_id
+                                    .say(&ctx, "0文字のヒントは出せません！")
+                                    .expect("fail to post");
+                            },
+                            length if length < g.len() - 1 => {
+                                g.truncate(len);
+                                msg.channel_id
+                                    .say(
+                                        &ctx,
+                                        format!(
+                                            "答えの先頭 {len} 文字は... => \"{hint}\" ",
+                                            len = len,
+                                            hint = g.into_iter().collect::<String>(),
+                                        ),
+                                    )
+                                    .expect("fail to post");
+                            },
+                            _ => {
+                                msg.channel_id
+                                    .say(&ctx, "ヒントが単語より長過いわ、ボケ")
+                                    .expect("fail to post");
                             }
-                        },
-                        length if length < g.len() - 1 => {
-                            g.truncate(len);
-                            msg.channel_id
-                                .say(
-                                    &ctx,
-                                    format!(
-                                        "答えの先頭 {len} 文字は... => \"{hint}\" ",
-                                        len = len,
-                                        hint = g.into_iter().collect::<String>(),
-                                    ),
-                                )
-                                .expect("fail to post");
-                        },
-                        _ => {
-                            msg.channel_id
-                                .say(&ctx, "ヒントが単語より長過いわ、ボケ")
-                                .expect("fail to post");
                         }
+                    } else {
+                        msg.channel_id
+                            .say(&ctx, "現在問題は出ていません。")
+                            .expect("fail to post");
                     }
-                } else {
-                    msg.channel_id
-                        .say(&ctx, "現在問題は出ていません。")
-                        .expect("fail to post");
                 }
-            }
+            },
+            Err(e) => {
+                msg.channel_id
+                    .say(&ctx, format!("{:?}", e))
+                    .expect("fail to post");
+            },
         }
     };
 
