@@ -9,6 +9,7 @@ extern crate toml;
 extern crate unicode_segmentation;
 extern crate regex;
 extern crate clap;
+#[macro_use] extern crate paste;
 // A trait that the Validate derive will impl
 use unicode_segmentation::UnicodeSegmentation;
 //extern crate nazonazo_macros;
@@ -66,7 +67,9 @@ macro_rules! quiz_commands {
         const COMMAND_NUM: usize = count!($($commands),*);
         lazy_static! {
             pub static ref QUIZ_COMMANDS: [String; COMMAND_NUM] = [$(stringify!($commands).to_string(),)*];
-            pub static ref QUIZ_COMMANDS_REGEX: Regex = Regex::new(stringify!(^($command $(|$commands)*)$)).unwrap();
+            pub static ref QUIZ_COMMANDS_REGEX: Regex = Regex::new(
+                &vec!["^(", stringify!($command), $("|", stringify!($commands),)* ")$"].join("")
+            ).unwrap();
         }
     };
 }
@@ -128,8 +131,8 @@ pub mod command {
     }
 
     fn language_validator(language: String) -> Result<(), String> {
-        let re = Regex::new("^(en|ja|fr|de|it)$").unwrap();
-        if !re.is_match(&language) {
+//        let re = Regex::new("^(en|ja|fr|de|it)$").unwrap();
+        if !crate::QUIZ_COMMANDS_REGEX.is_match(&language) {
             Err(format!("unexpected language '{}'.", language).to_string())
         } else {
             Ok(())
