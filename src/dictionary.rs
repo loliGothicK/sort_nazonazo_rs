@@ -1,15 +1,15 @@
 use indexmap::IndexMap;
 use itertools::Itertools;
+use rand::distributions::{Distribution, Uniform};
+use rand::rngs::ThreadRng;
+use rand::Rng;
 use serde_derive::{Deserialize, Serialize};
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Read;
-use std::{env, path::Path};
-use rand::distributions::{Distribution, Uniform};
-use std::cell::RefCell;
-use rand::{Rng};
-use rand::rngs::ThreadRng;
 use std::sync::RwLock;
+use std::{env, path::Path};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct RawDictionary {
