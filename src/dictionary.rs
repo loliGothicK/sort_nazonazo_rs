@@ -5,6 +5,11 @@ use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Read;
 use std::{env, path::Path};
+use rand::distributions::{Distribution, Uniform};
+use std::cell::RefCell;
+use rand::{Rng};
+use rand::rngs::ThreadRng;
+use std::sync::RwLock;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct RawDictionary {
@@ -43,11 +48,12 @@ impl RawDictionary {
 pub struct Dictionary {
     pub questions: IndexMap<String, String>,
     pub full: Option<BTreeMap<String, Vec<String>>>,
+    dist: Uniform<usize>,
 }
 
 impl Dictionary {
-    pub fn get_index(&self, idx: usize) -> Option<(&String, &String)> {
-        self.questions.get_index(idx)
+    pub fn get<Rng: rand::Rng>(&self, engine: &mut Rng) -> Option<(&String, &String)> {
+        self.questions.get_index(self.dist.sample(engine))
     }
 
     pub fn len(&self) -> usize {
@@ -95,6 +101,7 @@ impl Into<Dictionary> for RawDictionary {
         Dictionary {
             questions: dictionary.to_owned(),
             full: full_dictionary,
+            dist: Uniform::new(0, dictionary.len()),
         }
     }
 }
@@ -135,6 +142,7 @@ impl<F: Fn(&String) -> String> Into<Dictionary> for CustomRawDictionary<F> {
         Dictionary {
             questions: dictionary.to_owned(),
             full: full_dictionary,
+            dist: Uniform::new(0, dictionary.len()),
         }
     }
 }
