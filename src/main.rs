@@ -14,7 +14,7 @@ extern crate paste;
 // A trait that the Validate derive will impl
 use unicode_segmentation::UnicodeSegmentation;
 //extern crate nazonazo_macros;
-use clap::{App, Arg, SubCommand};
+
 use regex::Regex;
 #[macro_use]
 extern crate custom_derive;
@@ -44,13 +44,13 @@ use serenity::{
 use indexmap::IndexSet;
 use itertools::Itertools;
 use regex::internal::Input;
-use serde_derive::{Deserialize, Serialize};
-use std::collections::HashMap;
+
+
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::iter::FromIterator;
 use std::str::from_utf8;
-use tokio::future::err;
+
 
 pub mod dictionary;
 
@@ -122,7 +122,7 @@ impl EventHandler for Handler {
 
 pub mod command {
     use clap::{App, AppSettings, Arg};
-    use regex::Regex;
+    
 
     fn number_validator(num: String) -> Result<(), String> {
         match num.parse::<u32>() {
@@ -164,8 +164,8 @@ pub mod command {
 pub mod bot {
 
     use super::dictionary::*;
-    use indexmap::{IndexMap, IndexSet};
-    use rand::distributions::{Distribution, Uniform};
+    use indexmap::{IndexSet};
+    use rand::distributions::{Uniform};
     use std::collections::BTreeMap;
     use std::sync::RwLock;
     use std::sync::{Arc, Mutex};
@@ -355,7 +355,7 @@ fn contest_continue(
 }
 
 fn kick(ctx: &mut Context, msg: &Message) -> std::io::Result<()> {
-    use std::process::{Command, ExitStatus, Output};
+    use std::process::{Command};
     let mut src = BufWriter::new(File::create("/tmp/main.rs")?);
     let code = format!(
         r#"fn kick() {{
