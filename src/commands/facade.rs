@@ -1,21 +1,21 @@
+use rand::seq::index::sample;
 use regex::Regex;
 use serenity::{
     client::Client,
     framework::standard::{
         macros::{command, group},
-        Args, Delimiter, CommandResult, StandardFramework,
+        Args, CommandResult, Delimiter, StandardFramework,
     },
     model::{channel::Message, gateway::Ready},
     prelude::*,
 };
-use std::env;
-use unicode_segmentation::UnicodeSegmentation;
-use rand::seq::index::sample;
 use std::collections::BTreeSet;
+use std::env;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::iter::FromIterator;
 use std::str::from_utf8;
+use unicode_segmentation::UnicodeSegmentation;
 
 use super::super::{bot, dictionary};
 use super::{executors, parser};
@@ -155,7 +155,7 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
                     .say(&ctx, format!("正解は \"{}\" でした...", ans))
                     .expect("fail to post");
                 *quiz_stat = bot::Status::StandingBy;
-            },
+            }
             bot::Status::Contesting(ans, _, (count, num), ..) => {
                 msg.channel_id
                     .say(&ctx, format!("正解は \"{}\" でした...", ans))
@@ -172,10 +172,7 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
                                     num = num,
                                     result = v
                                         .into_iter()
-                                        .map(|tuple| format!(
-                                            "{} AC: {}\n",
-                                            tuple.1, tuple.0
-                                        ))
+                                        .map(|tuple| format!("{} AC: {}\n", tuple.1, tuple.0))
                                         .collect::<String>()
                                 ),
                             )
@@ -194,12 +191,12 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
                         );
                     }
                 }
-            },
+            }
             bot::Status::StandingBy => {
                 msg.channel_id
                     .say(&ctx, "現在問題は出ていません。")
                     .expect("fail to post");
-            },
+            }
         }
     }
     Ok(())
@@ -229,7 +226,10 @@ pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
                     languages.sort();
                     languages.dedup();
                     CONTEST_LIBRARY.write().unwrap().set(languages);
-                    let (dic, lang) = CONTEST_LIBRARY.write().unwrap().select(&mut rand::thread_rng());
+                    let (dic, lang) = CONTEST_LIBRARY
+                        .write()
+                        .unwrap()
+                        .select(&mut rand::thread_rng());
                     let (ans, sorted) = dic.get(&mut rand::thread_rng()).unwrap();
                     msg.channel_id
                         .say(
@@ -242,7 +242,13 @@ pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
                             ),
                         )
                         .expect("fail to post");
-                    *quiz_guard = bot::Status::Contesting(ans.clone(), sorted.clone(), (1, num), dic.get_anagrams(&sorted), dic.get_full_anagrams(&sorted));
+                    *quiz_guard = bot::Status::Contesting(
+                        ans.clone(),
+                        sorted.clone(),
+                        (1, num),
+                        dic.get_anagrams(&sorted),
+                        dic.get_full_anagrams(&sorted),
+                    );
                 }
             }
         }

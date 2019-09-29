@@ -17,8 +17,8 @@ use std::io::{BufWriter, Write};
 use std::iter::FromIterator;
 use std::str::from_utf8;
 
-use super::super::dictionary;
 use super::super::bot;
+use super::super::dictionary;
 
 pub(crate) fn prob(
     ctx: &mut Context,

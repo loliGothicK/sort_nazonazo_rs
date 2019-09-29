@@ -1,5 +1,5 @@
-use clap::{App, AppSettings, Arg};
 use super::facade;
+use clap::{App, AppSettings, Arg};
 
 fn range_validator(low: u32, up: u32) -> Box<dyn Fn(String) -> Result<(), String>> {
     Box::new(move |num: String| match num.parse::<u32>() {
@@ -26,7 +26,7 @@ fn language_validator(language: String) -> Result<(), String> {
     }
 }
 
-pub(crate)  fn contest(
+pub(crate) fn contest(
     args: &mut serenity::framework::standard::Args,
 ) -> clap::Result<(u32, Vec<String>)> {
     App::new("contest")
@@ -83,7 +83,7 @@ pub(crate) fn hint(args: &mut serenity::framework::standard::Args) -> clap::Resu
                 .long("random")
                 .takes_value(false)
                 .help("flag for random select hint")
-                .required(false)
+                .required(false),
         )
         .get_matches_from_safe(
             vec!["contest".to_string()]
@@ -91,8 +91,12 @@ pub(crate) fn hint(args: &mut serenity::framework::standard::Args) -> clap::Resu
                 .chain(args.iter::<String>().filter_map(Result::ok))
                 .into_iter(),
         )
-        .map(|matches|{
-            let num = matches.value_of("number").unwrap().parse::<usize>().unwrap();
+        .map(|matches| {
+            let num = matches
+                .value_of("number")
+                .unwrap()
+                .parse::<usize>()
+                .unwrap();
             if dbg!(matches.is_present("random")) {
                 Hint::Random(num)
             } else {

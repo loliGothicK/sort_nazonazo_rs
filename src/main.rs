@@ -33,11 +33,11 @@ use std::io::{BufWriter, Write};
 use std::iter::FromIterator;
 use std::str::from_utf8;
 
-pub mod dictionary;
-pub mod commands;
 pub mod bot;
+pub mod commands;
+pub mod dictionary;
 
-use commands::{parser, executors, facade};
+use commands::{executors, facade, parser};
 
 struct Handler;
 
