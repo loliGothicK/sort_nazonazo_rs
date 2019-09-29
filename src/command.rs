@@ -60,6 +60,11 @@ pub fn contest(
         })
 }
 
+enum Hint {
+    First(usize),
+    Random(usize),
+}
+
 pub fn hint(args: &mut serenity::framework::standard::Args) -> clap::Result<usize> {
     App::new("hint")
         .version(crate::VERSION)
@@ -68,6 +73,12 @@ pub fn hint(args: &mut serenity::framework::standard::Args) -> clap::Result<usiz
             Arg::with_name("number")
                 .required(true)
                 .validator(parse_validator::<usize>),
+        )
+        .arg(
+            Arg::with_name("random")
+                .short("rand")
+                .long("random")
+                .required(false)
         )
         .get_matches_from_safe(
             vec!["contest".to_string()]

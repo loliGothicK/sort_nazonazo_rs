@@ -460,61 +460,59 @@ fn it(ctx: &mut Context, msg: &Message) -> CommandResult {
     Ok(())
 }
 
-fn giveup_impl(ctx: &mut Context, msg: &Message) -> CommandResult {
+fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) -> CommandResult {
     if !msg.author.bot {
-        if let Ok(mut guard) = bot::QUIZ.lock() {
-            match &mut *guard {
-                bot::Status::Holding(ans, ..) => {
-                    msg.channel_id
-                        .say(&ctx, format!("正解は \"{}\" でした...", ans))
-                        .expect("fail to post");
-                    *guard = bot::Status::StandingBy;
-                },
-                bot::Status::Contesting(ans, _, (count, num), ..) => {
-                    msg.channel_id
-                        .say(&ctx, format!("正解は \"{}\" でした...", ans))
-                        .expect("fail to post");
-                    if let Ok(mut contest_result) = bot::CONTEST_REUSLT.write() {
-                        if &count == &num {
-                            let mut v = Vec::from_iter(contest_result.iter());
-                            v.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
-                            msg.channel_id
-                                .say(
-                                    &ctx,
-                                    format!(
-                                        "{num}問連続のコンテストが終了しました。\n{result}",
-                                        num = num,
-                                        result = v
-                                            .into_iter()
-                                            .map(|tuple| format!(
-                                                "{} AC: {}\n",
-                                                tuple.1, tuple.0
-                                            ))
-                                            .collect::<String>()
-                                    ),
-                                )
-                                .expect("fail to post");
-                            *contest_result = std::collections::BTreeMap::new();
-                            *guard = bot::Status::StandingBy;
-                        } else {
-                            let (ans, sorted, anagram, full_anagram) =
-                                contest_continue(ctx, &msg, *count + 1, *num);
-                            *guard = bot::Status::Contesting(
-                                ans.clone(),
-                                sorted.clone(),
-                                (*count + 1, *num),
-                                anagram,
-                                full_anagram,
-                            );
-                        }
+        match quiz_stat {
+            bot::Status::Holding(ans, ..) => {
+                msg.channel_id
+                    .say(&ctx, format!("正解は \"{}\" でした...", ans))
+                    .expect("fail to post");
+                *quiz_stat = bot::Status::StandingBy;
+            },
+            bot::Status::Contesting(ans, _, (count, num), ..) => {
+                msg.channel_id
+                    .say(&ctx, format!("正解は \"{}\" でした...", ans))
+                    .expect("fail to post");
+                if let Ok(mut contest_result) = bot::CONTEST_REUSLT.write() {
+                    if &count == &num {
+                        let mut v = Vec::from_iter(contest_result.iter());
+                        v.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
+                        msg.channel_id
+                            .say(
+                                &ctx,
+                                format!(
+                                    "{num}問連続のコンテストが終了しました。\n{result}",
+                                    num = num,
+                                    result = v
+                                        .into_iter()
+                                        .map(|tuple| format!(
+                                            "{} AC: {}\n",
+                                            tuple.1, tuple.0
+                                        ))
+                                        .collect::<String>()
+                                ),
+                            )
+                            .expect("fail to post");
+                        *contest_result = std::collections::BTreeMap::new();
+                        *quiz_stat = bot::Status::StandingBy;
+                    } else {
+                        let (ans, sorted, anagram, full_anagram) =
+                            contest_continue(ctx, &msg, *count + 1, *num);
+                        *quiz_stat = bot::Status::Contesting(
+                            ans.clone(),
+                            sorted.clone(),
+                            (*count + 1, *num),
+                            anagram,
+                            full_anagram,
+                        );
                     }
-                },
-                bot::Status::StandingBy => {
-                    msg.channel_id
-                        .say(&ctx, "現在問題は出ていません。")
-                        .expect("fail to post");
-                },
-            }
+                }
+            },
+            bot::Status::StandingBy => {
+                msg.channel_id
+                    .say(&ctx, "現在問題は出ていません。")
+                    .expect("fail to post");
+            },
         }
     }
     Ok(())
@@ -523,7 +521,10 @@ fn giveup_impl(ctx: &mut Context, msg: &Message) -> CommandResult {
 #[command]
 fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~giveup' by user '{}'", msg.author.name);
-    giveup_impl(ctx, msg)
+    if let Ok(mut guard) = bot::QUIZ.lock() {
+        giveup_impl(ctx, msg, &mut *guard)?;
+    }
+    Ok(())
 }
 
 #[command]
@@ -590,7 +591,7 @@ fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
 
     if_chain! {
         if !msg.author.bot;
-        if let Ok(guard) = bot::QUIZ.lock();
+        if let Ok(mut guard) = bot::QUIZ.lock();
         if guard.is_holding() || guard.is_contesting();
         then {
             let mut g = UnicodeSegmentation::graphemes(guard.ans().unwrap().as_str(), true).collect::<Vec<&str>>();
@@ -606,11 +607,10 @@ fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
                         .expect("fail to post");
                 },
                 Ok(num) if num == g.len() || num == g.len() - 1 => {
-                    drop(guard);
                     msg.channel_id
                         .say(&ctx, "答えが一意に定まるためギブアップとみなされました！")
                         .expect("fail to post");
-                    giveup_impl(ctx, msg)?;
+                    giveup_impl(ctx, msg, &mut *guard)?;
                 },
                 Ok(num) if num > g.len() => {
                     msg.channel_id
