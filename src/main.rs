@@ -273,7 +273,7 @@ fn answer_check(ctx: &mut Context, msg: &Message) {
                 } else if full_anagram
                     .as_ref()
                     .map(|x| x.contains(&msg.content.to_lowercase()))
-                    .unwrap_or_default()
+                    .unwrap_or(false)
                 {
                     msg.channel_id
                         .say(
@@ -295,39 +295,40 @@ fn answer_check(ctx: &mut Context, msg: &Message) {
                         .unwrap()
                         .entry(msg.author.name.clone())
                         .or_insert(0) += 1;
-                    if count >= num;
                     if let Ok(guard) = bot::CONTEST_REUSLT.read();
                     then {
-                        let mut v = Vec::from_iter(guard.iter());
-                        v.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
-                        msg.channel_id
-                            .say(
-                                &ctx,
-                                format!(
-                                    "{num}問連続のコンテストが終了しました。\n{result}",
-                                    num = num,
-                                    result = v
-                                        .into_iter()
-                                        .map(|tuple| format!(
-                                            "{} AC: {}\n",
-                                            tuple.1, tuple.0
-                                        ))
-                                        .collect::<String>()
-                                ),
-                            )
-                            .expect("fail to post");
-                        *bot::CONTEST_REUSLT.write().unwrap() = std::collections::BTreeMap::new();
-                        *quiz_guard = bot::Status::StandingBy;
-                    } else {
-                        let (ans, sorted, anagram, full_anagram) =
-                            contest_continue(ctx, &msg, *count + 1, *num);
-                        *quiz_guard = bot::Status::Contesting(
-                            ans.clone(),
-                            sorted.clone(),
-                            (*count + 1, *num),
-                            anagram,
-                            full_anagram,
-                        );
+                        if count >= num {
+                            let mut v = Vec::from_iter(guard.iter());
+                            v.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
+                            msg.channel_id
+                                .say(
+                                    &ctx,
+                                    format!(
+                                        "{num}問連続のコンテストが終了しました。\n{result}",
+                                        num = num,
+                                        result = v
+                                            .into_iter()
+                                            .map(|tuple| format!(
+                                                "{} AC: {}\n",
+                                                tuple.1, tuple.0
+                                            ))
+                                            .collect::<String>()
+                                    ),
+                                )
+                                .expect("fail to post");
+                            *bot::CONTEST_REUSLT.write().unwrap() = std::collections::BTreeMap::new();
+                            *quiz_guard = bot::Status::StandingBy;
+                        } else {
+                            let (ans, sorted, anagram, full_anagram) =
+                                contest_continue(ctx, &msg, *count + 1, *num);
+                            *quiz_guard = bot::Status::Contesting(
+                                ans.clone(),
+                                sorted.clone(),
+                                (*count + 1, *num),
+                                anagram,
+                                full_anagram,
+                            );
+                        }
                     }
                 }
             }
@@ -460,10 +461,8 @@ fn it(ctx: &mut Context, msg: &Message) -> CommandResult {
 }
 
 fn giveup_impl(ctx: &mut Context, msg: &Message) -> CommandResult {
-    if_chain! {
-        if !msg.author.bot;
-        if let Ok(mut guard) = bot::QUIZ.lock();
-        then {
+    if !msg.author.bot {
+        if let Ok(mut guard) = bot::QUIZ.lock() {
             match &mut *guard {
                 bot::Status::Holding(ans, ..) => {
                     msg.channel_id
@@ -475,11 +474,39 @@ fn giveup_impl(ctx: &mut Context, msg: &Message) -> CommandResult {
                     msg.channel_id
                         .say(&ctx, format!("正解は \"{}\" でした...", ans))
                         .expect("fail to post");
-                    if &count == &num {
-                        msg.channel_id
-                            .say(&ctx, format!("{}問連続のコンテストが終了しました。", num))
-                            .expect("fail to post");
-                        *guard = bot::Status::StandingBy;
+                    if let Ok(mut contest_result) = bot::CONTEST_REUSLT.write() {
+                        if &count == &num {
+                            let mut v = Vec::from_iter(contest_result.iter());
+                            v.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
+                            msg.channel_id
+                                .say(
+                                    &ctx,
+                                    format!(
+                                        "{num}問連続のコンテストが終了しました。\n{result}",
+                                        num = num,
+                                        result = v
+                                            .into_iter()
+                                            .map(|tuple| format!(
+                                                "{} AC: {}\n",
+                                                tuple.1, tuple.0
+                                            ))
+                                            .collect::<String>()
+                                    ),
+                                )
+                                .expect("fail to post");
+                            *contest_result = std::collections::BTreeMap::new();
+                            *guard = bot::Status::StandingBy;
+                        } else {
+                            let (ans, sorted, anagram, full_anagram) =
+                                contest_continue(ctx, &msg, *count + 1, *num);
+                            *guard = bot::Status::Contesting(
+                                ans.clone(),
+                                sorted.clone(),
+                                (*count + 1, *num),
+                                anagram,
+                                full_anagram,
+                            );
+                        }
                     }
                 },
                 bot::Status::StandingBy => {
@@ -503,10 +530,8 @@ fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
 fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     use crate::bot::CONTEST_LIBRARY;
     println!("Got command '~contest' by user '{}'", msg.author.name);
-    if_chain! {
-        if !msg.author.bot;
-        if let Ok(mut quiz_guard) = bot::QUIZ.lock();
-        then {
+    if !msg.author.bot {
+        if let Ok(mut quiz_guard) = bot::QUIZ.lock() {
             match command::contest(&mut args) {
                 Err(err_msg) => {
                     msg.channel_id.say(&ctx, err_msg).expect("fail to post");
