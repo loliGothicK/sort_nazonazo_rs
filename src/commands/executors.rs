@@ -1,4 +1,4 @@
-use regex::Regex;
+
 use serenity::{
     client::Client,
     framework::standard::{
@@ -8,8 +8,8 @@ use serenity::{
     model::{channel::Message, gateway::Ready},
     prelude::*,
 };
-use std::env;
-use unicode_segmentation::UnicodeSegmentation;
+
+
 
 use std::collections::BTreeSet;
 use std::fs::File;

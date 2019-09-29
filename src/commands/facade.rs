@@ -1,4 +1,4 @@
-use rand::seq::index::sample;
+
 use regex::Regex;
 use serenity::{
     client::Client,
@@ -9,15 +9,15 @@ use serenity::{
     model::{channel::Message, gateway::Ready},
     prelude::*,
 };
-use std::collections::BTreeSet;
+
 use std::env;
-use std::fs::File;
-use std::io::{BufWriter, Write};
+
+use std::io::{Write};
 use std::iter::FromIterator;
-use std::str::from_utf8;
+
 use unicode_segmentation::UnicodeSegmentation;
 
-use super::super::{bot, dictionary};
+use super::super::{bot};
 use super::{executors, parser};
 
 macro_rules! count {

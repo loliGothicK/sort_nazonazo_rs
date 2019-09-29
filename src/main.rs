@@ -25,19 +25,19 @@ use serenity::{
     prelude::*,
 };
 use std::env;
-use unicode_segmentation::UnicodeSegmentation;
 
-use std::collections::BTreeSet;
-use std::fs::File;
-use std::io::{BufWriter, Write};
-use std::iter::FromIterator;
-use std::str::from_utf8;
+
+
+
+
+
+
 
 pub mod bot;
 pub mod commands;
 pub mod dictionary;
 
-use commands::{executors, facade, parser};
+use commands::{executors, facade};
 
 struct Handler;
 
