@@ -463,35 +463,35 @@ fn answer_check(ctx: &mut Context, msg: &Message) {
                     finally = true;
                 }
 
-                if finally {
-                    *bot::CONTEST_REUSLT
+                if_chain! {
+                    if finally;
+                    let _ = *bot::CONTEST_REUSLT
                         .write()
                         .unwrap()
                         .entry(msg.author.name.clone())
                         .or_insert(0) += 1;
-                    if count >= num {
-                        if let Ok(guard) = bot::CONTEST_REUSLT.read() {
-                            let mut v = Vec::from_iter(guard.iter());
-                            v.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
-                            msg.channel_id
-                                .say(
-                                    &ctx,
-                                    format!(
-                                        "{num}問連続のコンテストが終了しました。\n{result}",
-                                        num = num,
-                                        result = v
-                                            .into_iter()
-                                            .map(|tuple| format!(
-                                                "{} AC: {}\n",
-                                                tuple.1, tuple.0
-                                            ))
-                                            .collect::<String>()
-                                    ),
-                                )
-                                .expect("fail to post");
-                        }
-                        *bot::CONTEST_REUSLT.write().unwrap() =
-                            std::collections::BTreeMap::new();
+                    if count >= num;
+                    if let Ok(guard) = bot::CONTEST_REUSLT.read();
+                    then {
+                        let mut v = Vec::from_iter(guard.iter());
+                        v.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
+                        msg.channel_id
+                            .say(
+                                &ctx,
+                                format!(
+                                    "{num}問連続のコンテストが終了しました。\n{result}",
+                                    num = num,
+                                    result = v
+                                        .into_iter()
+                                        .map(|tuple| format!(
+                                            "{} AC: {}\n",
+                                            tuple.1, tuple.0
+                                        ))
+                                        .collect::<String>()
+                                ),
+                            )
+                            .expect("fail to post");
+                        *bot::CONTEST_REUSLT.write().unwrap() = std::collections::BTreeMap::new();
                         *quiz_guard = bot::Status::StandingBy;
                     } else {
                         let (ans, sorted, anagram, full_anagram) =
