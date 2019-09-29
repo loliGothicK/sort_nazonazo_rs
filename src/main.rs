@@ -1,55 +1,38 @@
 //#![feature(async_await)]
-use rand::distributions::{Distribution, Uniform};
-use std::env;
-#[macro_use]
-extern crate lazy_static;
+#[macro_use] extern crate lazy_static;
+#[macro_use] extern crate if_chain;
+#[macro_use] extern crate custom_derive;
+#[macro_use] extern crate enum_derive;
 extern crate clap;
 extern crate regex;
-extern crate serde_derive;
-extern crate serde_json;
 extern crate toml;
 extern crate unicode_segmentation;
-#[macro_use]
-extern crate paste;
-// A trait that the Validate derive will impl
-use unicode_segmentation::UnicodeSegmentation;
 //extern crate nazonazo_macros;
 
+use std::env;
+use unicode_segmentation::UnicodeSegmentation;
 use regex::Regex;
-#[macro_use]
-extern crate custom_derive;
-#[macro_use]
-extern crate enum_derive;
-
 use serenity::{
     client::{
-        bridge::gateway::{ShardId, ShardManager},
         Client,
     },
     framework::standard::{
-        help_commands,
-        macros::{check, command, group, help},
-        Args, CheckResult, CommandGroup, CommandOptions, CommandResult, DispatchError, HelpOptions,
+        macros::{command, group},
+        Args, CommandResult,
         StandardFramework,
     },
     model::{
-        channel::{Channel, Message},
+        channel::Message,
         gateway::Ready,
-        id::UserId,
     },
     prelude::*,
-    utils::{content_safe, ContentSafeOptions, MessageBuilder},
 };
-
-use indexmap::IndexSet;
-use itertools::Itertools;
-use regex::internal::Input;
-
 
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::iter::FromIterator;
 use std::str::from_utf8;
+use std::collections::BTreeSet;
 
 
 pub mod dictionary;
@@ -67,9 +50,9 @@ macro_rules! quiz_commands {
             options: {},
             commands: [$command, $($commands),*],
         });
-        const COMMAND_NUM: usize = count!($($commands),*);
+        const COMMAND_NUM: usize = count!($($commands),*) + 1;
         lazy_static! {
-            pub static ref QUIZ_COMMANDS: [String; COMMAND_NUM] = [$(stringify!($commands).to_string(),)*];
+            pub static ref QUIZ_COMMANDS: [String; COMMAND_NUM] = [stringify!($command).to_string(), $(stringify!($commands).to_string(),)*];
             pub static ref QUIZ_COMMANDS_REGEX: Regex = Regex::new(
                 &vec!["^(", stringify!($command), $("|", stringify!($commands),)* ")$"].join("")
             ).unwrap();
@@ -122,42 +105,65 @@ impl EventHandler for Handler {
 
 pub mod command {
     use clap::{App, AppSettings, Arg};
-    
 
-    fn number_validator(num: String) -> Result<(), String> {
-        match num.parse::<u32>() {
-            Err(_) => Err(String::from("please specify number after '~contest'.")),
-            Ok(num) if num == 0 => Err(String::from("invalid number.")),
-            Ok(num) if num > 100 => Err(String::from("too large number.")),
+    fn range_validator(low: u32, up: u32) -> Box<dyn Fn(String) -> Result<(), String>> {
+        Box::new(move |num: String| match num.parse::<u32>() {
+            Err(_) => Err(String::from("please specify unsigned integer after '~contest'.")),
+            Ok(num) if num == low => Err(String::from("too small number.")),
+            Ok(num) if num > up => Err(String::from("too large number.")),
             Ok(_) => Ok(()),
-        }
+        })
     }
-
+    fn parse_validator<T: std::str::FromStr>(num: String) -> Result<(), String> {
+        num.parse::<T>().map(|_|()).map_err(|_| format!("`{}` is invalid.", num).to_string())
+    }
     fn language_validator(language: String) -> Result<(), String> {
-        //        let re = Regex::new("^(en|ja|fr|de|it)$").unwrap();
         if !crate::QUIZ_COMMANDS_REGEX.is_match(&language) {
             Err(format!("unexpected language '{}'.", language).to_string())
         } else {
             Ok(())
         }
     }
-
-    pub fn contest() -> App<'static, 'static> {
+    pub fn contest(args: &mut serenity::framework::standard::Args) -> clap::Result<(u32, Vec<String>)> {
         App::new("contest")
-            .version("v1.0-beta")
+            .version(crate::VERSION)
             .setting(AppSettings::ColorNever)
             .arg(
                 Arg::with_name("number")
                     .required(true)
-                    .validator(number_validator),
-            )
+                    .validator(range_validator(1, 100)))
             .arg(
                 Arg::with_name("languages")
                     .required(true)
                     .use_delimiter(true)
                     .validator(language_validator)
-                    .min_values(1),
+                    .min_values(1))
+            .get_matches_from_safe(
+                vec!["contest".to_string()]
+                    .into_iter()
+                    .chain(args.iter::<String>().filter_map(Result::ok))
+                    .into_iter())
+            .map(|a| {
+                let num = a.value_of("number").unwrap().parse::<u32>().unwrap();
+                let languages = a.values_of("languages").unwrap().map(str::to_string).collect::<Vec<_>>();
+                (num, languages)
+            })
+    }
+    pub fn hint(args: &mut serenity::framework::standard::Args) -> clap::Result<usize> {
+        App::new("hint")
+            .version(crate::VERSION)
+            .setting(AppSettings::ColorNever)
+            .arg(
+                Arg::with_name("number")
+                    .required(true)
+                    .validator(parse_validator::<usize>),
             )
+            .get_matches_from_safe(
+                vec!["contest".to_string()]
+                    .into_iter()
+                    .chain(args.iter::<String>().filter_map(Result::ok))
+                    .into_iter())
+            .map(|a| a.value_of("number").unwrap().parse::<usize>().unwrap())
     }
 }
 
@@ -165,10 +171,10 @@ pub mod bot {
 
     use super::dictionary::*;
     use indexmap::{IndexSet};
-    use rand::distributions::{Uniform};
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, BTreeSet};
     use std::sync::RwLock;
     use std::sync::{Arc, Mutex};
+    use rand::distributions::{Distribution, Uniform};
 
     custom_derive! {
         #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, NextVariant, PrevVariant)]
@@ -182,7 +188,7 @@ pub mod bot {
     }
 
     impl Lang {
-        pub fn as_string(&self) -> String {
+        pub fn as_symbol(&self) -> String {
             match self {
                 Lang::En => "英単語".to_string(),
                 Lang::Ja => "単語".to_string(),
@@ -209,8 +215,8 @@ pub mod bot {
 
     pub enum Status {
         StandingBy,
-        Holding(String, String, Lang),
-        Contesting(String, String, Lang, (u32, u32)),
+        Holding(String, String, BTreeSet<String>, Option<BTreeSet<String>>),
+        Contesting(String, String, (u32, u32), BTreeSet<String>, Option<BTreeSet<String>>),
     }
 
     impl Status {
@@ -236,13 +242,12 @@ pub mod bot {
         pub fn ans(&self) -> std::result::Result<&String, ()> {
             match self {
                 Status::StandingBy => Err(()),
-                Status::Holding(ans, ..) => Ok(ans),
-                Status::Contesting(ans, ..) => Ok(ans),
+                Status::Holding(ans, ..) | Status::Contesting(ans, ..) => Ok(ans),
             }
         }
     }
 
-    pub fn select_dictionary(lang: &Lang) -> &Dictionary {
+    pub fn select_dictionary(lang: Lang) -> &'static Dictionary {
         match lang {
             Lang::En => &*ENGLISH,
             Lang::Ja => &*JAPANESE,
@@ -264,16 +269,46 @@ pub mod bot {
         }
     }
 
+    pub struct DictionarySelector {
+        engine: Result<Lang, Uniform<usize>>,
+        set: IndexSet<Lang>,
+    }
+
+    impl DictionarySelector {
+        pub fn new() -> DictionarySelector {
+            DictionarySelector {
+                engine: Ok(Lang::En),
+                set: Default::default()
+            }
+        }
+        pub fn set<S: Into<String>>(&mut self, languages: Vec<S>) {
+            if languages.len() == 1 {
+                self.engine = Ok(Lang::from(languages.into_iter().next().unwrap()));
+            }
+            else {
+                self.engine = Err(Uniform::new(0, languages.len()));
+                for lang in languages {
+                    self.set.insert(Lang::from(lang));
+                }
+            }
+        }
+        pub fn select<Engine: rand::Rng>(&self, rng: &mut Engine) -> (&'static Dictionary, Lang) {
+            let lang =
+                *self.engine.as_ref().unwrap_or_else(
+                    |uniform| self.set.get_index(uniform.sample(rng)).unwrap()
+                );
+            (select_dictionary(lang.clone()), lang)
+        }
+    }
+
     lazy_static! {
         pub static ref QUIZ: Arc<Mutex<Status>> = Arc::new(Mutex::new(Status::StandingBy));
         pub static ref CONTEST_REUSLT: RwLock<BTreeMap<String, u32>> = RwLock::new(BTreeMap::new());
-        pub static ref CONTEST_LANGUAGES: Arc<Mutex<IndexSet<Lang>>> =
-            Arc::new(Mutex::new(IndexSet::new()));
-        pub static ref DISTRIBUTION: RwLock<Uniform<usize>> = RwLock::new(Uniform::new(0, 1));
+        pub static ref CONTEST_LIBRARY: RwLock<DictionarySelector> = RwLock::new(DictionarySelector::new());
     }
 }
 
-fn prob(ctx: &mut Context, msg: &Message, lang: bot::Lang) -> (String, String) {
+fn prob(ctx: &mut Context, msg: &Message, lang: bot::Lang) -> (String, String, BTreeSet<String>, Option<BTreeSet<String>>) {
     println!("called prob");
     let dic = match lang {
         bot::Lang::En => &*dictionary::ENGLISH,
@@ -282,76 +317,41 @@ fn prob(ctx: &mut Context, msg: &Message, lang: bot::Lang) -> (String, String) {
         bot::Lang::De => &*dictionary::GERMAN,
         bot::Lang::It => &*dictionary::ITALIAN,
     };
-    println!("len = {}", dic.len());
     let (ans, sorted) = dic.get(&mut rand::thread_rng()).unwrap();
     msg.channel_id
         .say(
             &ctx,
             format!(
                 "ソートなぞなぞ ソート前の {as_str} な〜んだ？\n{prob}",
-                as_str = lang.as_string(),
+                as_str = lang.as_symbol(),
                 prob = sorted
             ),
         )
         .expect("fail to post");
-    (ans.clone(), sorted.clone())
+    (ans.clone(), sorted.clone(), dic.get_anagrams(&sorted), dic.get_full_anagrams(&sorted))
 }
 
 fn contest_continue(
     ctx: &mut Context,
     msg: &Message,
-    lang: bot::Lang,
     count: u32,
     num: u32,
-) -> (String, String) {
-    let dic = match lang {
-        bot::Lang::En => &*dictionary::ENGLISH,
-        bot::Lang::Ja => &*dictionary::JAPANESE,
-        bot::Lang::Fr => &*dictionary::FRENCH,
-        bot::Lang::De => &*dictionary::GERMAN,
-        bot::Lang::It => &*dictionary::ITALIAN,
-    };
-    if bot::CONTEST_LANGUAGES.lock().unwrap().len() == 1 {
-        let (ans, sorted) = dic.get(&mut rand::thread_rng()).unwrap();
-        msg.channel_id
-            .say(
-                &ctx,
-                format!(
-                    "問 {current} ({current}/{number})\nソートなぞなぞ ソート前の {lang} な〜んだ？\n{prob}",
-                    number = num,
-                    current = count,
-                    prob = sorted,
-                    lang = lang.as_string(),
-                ),
-            )
-            .expect("fail to post");
-        (ans.clone(), sorted.clone())
-    } else {
-        let langs = bot::CONTEST_LANGUAGES.lock().unwrap();
-        let lang = langs
-            .get_index(
-                bot::DISTRIBUTION
-                    .write()
-                    .unwrap()
-                    .sample(&mut rand::thread_rng()),
-            )
-            .unwrap();
-        let dic = bot::select_dictionary(&lang);
-        let (ans, sorted) = dic.get(&mut rand::thread_rng()).unwrap();
-        msg.channel_id
-            .say(
-                &ctx,
-                format!(
-                    "問 {current} ({current}/{number})\nソートなぞなぞ ソート前の {lang} な〜んだ？\n{prob}",
-                    number = num,
-                    current = count,
-                    prob = sorted,
-                    lang = lang.as_string(),
-                ),
-            )
-            .expect("fail to post");
-        (ans.clone(), sorted.clone())
-    }
+) -> (String, String, BTreeSet<String>, Option<BTreeSet<String>>) {
+    let (dic, lang) = bot::CONTEST_LIBRARY.read().unwrap().select(&mut rand::thread_rng());
+    let (ans, sorted) = dic.get(&mut rand::thread_rng()).unwrap();
+    msg.channel_id
+        .say(
+            &ctx,
+            format!(
+                "問 {current} ({current}/{number})\nソートなぞなぞ ソート前の {symbol} な〜んだ？\n{prob}",
+                number = num,
+                current = count,
+                prob = sorted,
+                symbol = lang.as_symbol(),
+            ),
+        )
+        .expect("fail to post");
+    (ans.clone(), sorted.clone(), dic.get_anagrams(&sorted), dic.get_full_anagrams(&sorted))
 }
 
 fn kick(ctx: &mut Context, msg: &Message) -> std::io::Result<()> {
@@ -373,17 +373,142 @@ fn main() {{
     match Command::new("rustc").arg("/tmp/main.rs").output() {
         Ok(output) => {
             if output.status.success() {
-                msg.channel_id.say(&ctx, "ヒィンｗ");
+                msg.channel_id.say(&ctx, "ヒィンｗ").expect("fail to post");
             } else {
                 msg.channel_id
-                    .say(&ctx, from_utf8(output.stderr.as_slice()).unwrap());
+                    .say(&ctx, from_utf8(output.stderr.as_slice()).unwrap())
+                    .expect("fail to post");
             }
-        }
+        },
         Err(e) => {
-            msg.channel_id.say(&ctx, format!("{:?}", e));
-        }
+            msg.channel_id.say(&ctx, format!("{:?}", e)).expect("fail to post");
+        },
     }
     Ok(())
+}
+
+fn answer_check(ctx: &mut Context, msg: &Message) {
+    if let Ok(mut quiz_guard) = bot::QUIZ.lock() {
+        match &mut *quiz_guard {
+            bot::Status::Holding(ans, _, anagram, full_anagram) => {
+                if &ans.to_lowercase() == &msg.content.to_lowercase() {
+                    msg.channel_id
+                        .say(
+                            &ctx,
+                            format!(
+                                "{} さん、正解です！\n正解は\"{}\"でした！",
+                                &msg.author.name, &ans
+                            ),
+                        )
+                        .expect("fail to post");
+                    *quiz_guard = bot::Status::StandingBy;
+                } else if anagram.contains(&msg.content.to_lowercase()) {
+                    msg.channel_id
+                        .say(
+                            &ctx,
+                            format!(
+                                "{} さん、{} は非想定解ですが正解です！",
+                                &msg.author.name, &msg.content.to_lowercase()
+                            ),
+                        )
+                        .expect("fail to post");
+                    *quiz_guard = bot::Status::StandingBy;
+                } else if full_anagram.as_ref().map(|x|x.contains(&msg.content.to_lowercase())).unwrap_or_default() {
+                    msg.channel_id
+                        .say(
+                            &ctx,
+                            format!(
+                                "{} さん、{} は出題辞書に非想定解ですが正解です！",
+                                &msg.author.name, &msg.content.to_lowercase()
+                            ),
+                        )
+                        .expect("fail to post");
+                    *quiz_guard = bot::Status::StandingBy;
+                }
+            },
+            bot::Status::Contesting(ref ans, _, (count, num), anagram, full_anagram) => {
+                let mut finally = false;
+                if &ans.to_lowercase() == &msg.content.to_lowercase() {
+                    msg.channel_id
+                        .say(
+                            &ctx,
+                            format!(
+                                "{} さん、正解です！\n正解は\"{}\"でした！",
+                                &msg.author.name, &ans
+                            ),
+                        )
+                        .expect("fail to post");
+                    finally = true;
+                } else if anagram.contains(&msg.content.to_lowercase()) {
+                    msg.channel_id
+                        .say(
+                            &ctx,
+                            format!(
+                                "{} さん、{} は非想定解ですが正解です！",
+                                &msg.author.name, &msg.content.to_lowercase()
+                            ),
+                        )
+                        .expect("fail to post");
+                    finally = true;
+                } else if full_anagram.as_ref().map(|x|x.contains(&msg.content.to_lowercase())).unwrap_or_default() {
+                    msg.channel_id
+                        .say(
+                            &ctx,
+                            format!(
+                                "{} さん、{} は出題辞書に非想定解ですが正解です！",
+                                &msg.author.name, &msg.content.to_lowercase()
+                            ),
+                        )
+                        .expect("fail to post");
+                    finally = true;
+                }
+
+                if finally {
+                    *bot::CONTEST_REUSLT
+                        .write()
+                        .unwrap()
+                        .entry(msg.author.name.clone())
+                        .or_insert(0) += 1;
+                    if count >= num {
+                        if let Ok(guard) = bot::CONTEST_REUSLT.read() {
+                            let mut v = Vec::from_iter(guard.iter());
+                            v.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
+                            msg.channel_id
+                                .say(
+                                    &ctx,
+                                    format!(
+                                        "{num}問連続のコンテストが終了しました。\n{result}",
+                                        num = num,
+                                        result = v
+                                            .into_iter()
+                                            .map(|tuple| format!(
+                                                "{} AC: {}\n",
+                                                tuple.1, tuple.0
+                                            ))
+                                            .collect::<String>()
+                                    ),
+                                )
+                                .expect("fail to post");
+                        }
+                        *bot::CONTEST_REUSLT.write().unwrap() =
+                            std::collections::BTreeMap::new();
+                        *quiz_guard = bot::Status::StandingBy;
+                    } else {
+                        let (ans, sorted, anagram, full_anagram) =
+                            contest_continue(ctx, &msg, *count + 1, *num);
+                        *quiz_guard = bot::Status::Contesting(
+                            ans.clone(),
+                            sorted.clone(),
+                            (*count + 1, *num),
+                            anagram,
+                            full_anagram,
+                        );
+                    }
+                }
+            },
+            _ => {}
+        }
+    }
 }
 
 fn main() {
@@ -400,7 +525,7 @@ fn main() {
                 );
                 if QUIZ_COMMANDS.contains(&command_name.to_string()) {
                     match &*bot::QUIZ.lock().unwrap() {
-                        bot::Status::Holding(ref sorted, ..) => {
+                        bot::Status::Holding(_, ref sorted, ..) => {
                             msg.channel_id
                                 .say(
                                     &ctx,
@@ -409,7 +534,7 @@ fn main() {
                                 .expect("fail to post");
                             false
                         }
-                        bot::Status::Contesting(ref sorted, ..) => {
+                        bot::Status::Contesting(_, ref sorted, ..) => {
                             msg.channel_id
                                 .say(&ctx, format!("現在コンテスト中です\n問題: {}", sorted))
                                 .expect("fail to post");
@@ -428,80 +553,7 @@ fn main() {
                     return;
                 }
                 println!("got message \"{}\"", &msg.content);
-                if let Ok(mut guard) = bot::QUIZ.lock() {
-                    match &mut *guard {
-                        bot::Status::Holding(ans, _sorted, _lang)
-                            if &ans.to_lowercase() == &msg.content.to_lowercase() =>
-                        {
-                            println!("pass Ok arm: ans = {}.", ans);
-                            msg.channel_id
-                                .say(
-                                    &ctx,
-                                    format!(
-                                        "{} さん、正解です！\n正解は\"{}\"でした！",
-                                        &msg.author.name, &ans
-                                    ),
-                                )
-                                .expect("fail to post");
-                            *guard = bot::Status::StandingBy;
-                        }
-                        bot::Status::Contesting(ref ans, _, lang, (count, num))
-                            if &ans.to_lowercase() == &msg.content.to_lowercase() =>
-                        {
-                            println!("pass Ok arm: ans = {}.", ans);
-                            msg.channel_id
-                                .say(
-                                    &ctx,
-                                    format!(
-                                        "{} さん、正解です！\n正解は\"{}\"でした！",
-                                        &msg.author.name, &ans
-                                    ),
-                                )
-                                .expect("fail to post");
-                            *bot::CONTEST_REUSLT
-                                .write()
-                                .unwrap()
-                                .entry(msg.author.name.clone())
-                                .or_insert(0) += 1;
-                            if count >= num {
-                                if let Ok(guard) = bot::CONTEST_REUSLT.read() {
-                                    let mut v = Vec::from_iter(guard.iter());
-                                    v.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
-                                    msg.channel_id
-                                        .say(
-                                            &ctx,
-                                            format!(
-                                                "{num}問連続のコンテストが終了しました。\n{result}",
-                                                num = num,
-                                                result = v
-                                                    .into_iter()
-                                                    .map(|tuple| format!(
-                                                        "{} AC: {}\n",
-                                                        tuple.1, tuple.0
-                                                    ))
-                                                    .collect::<String>()
-                                            ),
-                                        )
-                                        .expect("fail to post");
-                                }
-                                *bot::CONTEST_REUSLT.write().unwrap() =
-                                    std::collections::BTreeMap::new();
-                                *guard = bot::Status::StandingBy;
-                                *bot::CONTEST_LANGUAGES.lock().unwrap() = IndexSet::new();
-                            } else {
-                                let (ans, sorted) =
-                                    contest_continue(ctx, &msg, *lang, *count + 1, *num);
-                                *guard = bot::Status::Contesting(
-                                    ans.clone(),
-                                    sorted.clone(),
-                                    *lang,
-                                    (*count + 1, *num),
-                                );
-                            }
-                        }
-                        _ => {}
-                    }
-                }
+                answer_check(ctx, msg);
             })
             .group(&QUIZ_GROUP)
             .group(&CONTEST_GROUP)
@@ -518,108 +570,101 @@ fn main() {
 #[command]
 fn en(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~en' by user '{}'", msg.author.name);
-    if !msg.author.bot {
-        if let Ok(mut guard) = bot::QUIZ.lock() {
-            let (ans, sorted) = prob(ctx, &msg, bot::Lang::En);
-            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::En);
+    if_chain! {
+        if !msg.author.bot;
+        if let Ok(mut guard) = bot::QUIZ.lock();
+        then {
+            let (ans, sorted, anagram, full_anagram) = prob(ctx, &msg, bot::Lang::En);
+            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), anagram, full_anagram);
         }
-    };
+    }
     Ok(())
 }
 
 #[command]
 fn ja(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~ja' by user '{}'", msg.author.name);
-    if !msg.author.bot {
-        if let Ok(mut guard) = bot::QUIZ.lock() {
-            let (ans, sorted) = prob(ctx, &msg, bot::Lang::Ja);
-            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::Ja);
+    if_chain! {
+        if !msg.author.bot;
+        if let Ok(mut guard) = bot::QUIZ.lock();
+        then {
+            let (ans, sorted, anagram, full_anagram) = prob(ctx, &msg, bot::Lang::Ja);
+            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), anagram, full_anagram);
         }
-    };
+    }
     Ok(())
 }
 #[command]
 fn fr(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~fr' by user '{}'", msg.author.name);
-    if !msg.author.bot {
-        if let Ok(mut guard) = bot::QUIZ.lock() {
-            let (ans, sorted) = prob(ctx, &msg, bot::Lang::Fr);
-            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::Fr);
+    if_chain! {
+        if !msg.author.bot;
+        if let Ok(mut guard) = bot::QUIZ.lock();
+        then {
+            let (ans, sorted, anagram, full_anagram) = prob(ctx, &msg, bot::Lang::Fr);
+            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), anagram, full_anagram);
         }
-    };
+    }
     Ok(())
 }
 #[command]
 fn de(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~de' by user '{}'", msg.author.name);
-    if !msg.author.bot {
-        if let Ok(mut guard) = bot::QUIZ.lock() {
-            let (ans, sorted) = prob(ctx, &msg, bot::Lang::De);
-            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::De);
+    if_chain! {
+        if !msg.author.bot;
+        if let Ok(mut guard) = bot::QUIZ.lock();
+        then {
+            let (ans, sorted, anagram, full_anagram) = prob(ctx, &msg, bot::Lang::De);
+            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), anagram, full_anagram);
         }
-    };
+    }
     Ok(())
 }
 #[command]
 fn it(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~it' by user '{}'", msg.author.name);
-    if !msg.author.bot {
-        let (ans, sorted) = prob(ctx, &msg, bot::Lang::It);
-        if let Ok(mut guard) = bot::QUIZ.lock() {
-            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), bot::Lang::It);
+    if_chain! {
+        if !msg.author.bot;
+        if let Ok(mut guard) = bot::QUIZ.lock();
+        then {
+            let (ans, sorted, anagram, full_anagram) = prob(ctx, &msg, bot::Lang::It);
+            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), anagram, full_anagram);
         }
-    };
+    }
     Ok(())
 }
 
 fn giveup_impl(
     ctx: &mut Context,
     msg: &Message,
-    quiz: &bot::Status,
-) -> Option<(bot::Lang, (u32, u32))> {
-    match quiz {
-        bot::Status::Holding(ans, _, _) => {
-            msg.channel_id
-                .say(&ctx, format!("正解は \"{}\" でした...", ans))
-                .expect("fail to post");
-            None
-        }
-        bot::Status::Contesting(ans, _, lang, (count, num)) => {
-            msg.channel_id
-                .say(&ctx, format!("正解は \"{}\" でした...", ans))
-                .expect("fail to post");
-            Some((*lang, (count + 1, *num)))
-        }
-        bot::Status::StandingBy => {
-            msg.channel_id
-                .say(&ctx, "現在問題は出ていません。")
-                .expect("fail to post");
-            None
-        }
-    }
-}
-
-#[command]
-fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
-    println!("Got command '~giveup' by user '{}'", msg.author.name);
-    if !msg.author.bot {
-        if let Ok(mut guard) = bot::QUIZ.lock() {
-            match giveup_impl(ctx, msg, &*guard) {
-                Some((_, (count, num))) if count > num => {
+) -> CommandResult {
+    if_chain! {
+        if !msg.author.bot;
+        if let Ok(mut guard) = bot::QUIZ.lock();
+        then {
+            match &mut *guard {
+                bot::Status::Holding(ans, ..) => {
                     msg.channel_id
-                        .say(&ctx, format!("{}問連続のコンテストが終了しました。", num))
+                        .say(&ctx, format!("正解は \"{}\" でした...", ans))
                         .expect("fail to post");
                     *guard = bot::Status::StandingBy;
-                    return Ok(());
-                }
-                Some((lang, (count, num))) => {
-                    let (ans, sorted) = contest_continue(ctx, &msg, lang, count, num);
-                    *guard =
-                        bot::Status::Contesting(ans.clone(), sorted.clone(), lang, (count, num));
-                }
-                None => {
-                    *guard = bot::Status::StandingBy;
-                }
+                },
+                bot::Status::Contesting(ans, _, (count, num), ..) => {
+                    msg.channel_id
+                        .say(&ctx, format!("正解は \"{}\" でした...", ans))
+                        .expect("fail to post");
+                    if &count == &num {
+                        msg.channel_id
+                            .say(&ctx, format!("{}問連続のコンテストが終了しました。", num))
+                            .expect("fail to post");
+                        *guard = bot::Status::StandingBy;
+                    }
+                },
+                bot::Status::StandingBy => {
+                    msg.channel_id
+                        .say(&ctx, "現在問題は出ていません。")
+                        .expect("fail to post");
+                },
             }
         }
     }
@@ -627,53 +672,44 @@ fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
 }
 
 #[command]
+fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
+    println!("Got command '~giveup' by user '{}'", msg.author.name);
+    giveup_impl(ctx, msg)
+}
+
+#[command]
 fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
-    use crate::bot::DISTRIBUTION;
+    use crate::bot::CONTEST_LIBRARY;
     println!("Got command '~contest' by user '{}'", msg.author.name);
-    if !msg.author.bot {
-        if let (Ok(mut quiz_guard), Ok(mut contest_languages_guard)) =
-            (bot::QUIZ.lock(), bot::CONTEST_LANGUAGES.lock())
-        {
-            let num = match command::contest().get_matches_from_safe(
-                vec!["contest".to_string()]
-                    .into_iter()
-                    .chain(args.iter::<String>().filter_map(Result::ok))
-                    .into_iter(),
-            ) {
+    if_chain! {
+        if !msg.author.bot;
+        if let Ok(mut quiz_guard) = bot::QUIZ.lock();
+        then {
+            match command::contest(&mut args) {
                 Err(err_msg) => {
                     msg.channel_id.say(&ctx, err_msg).expect("fail to post");
                     return Ok(());
                 }
-                Ok(matches) => {
-                    for lang in matches.values_of("languages").unwrap().collect::<Vec<_>>() {
-                        let _ = (&mut *contest_languages_guard).insert(bot::Lang::from(lang));
-                    }
-                    matches.value_of("number").unwrap().parse::<u32>().unwrap()
+                Ok((num, mut languages)) => {
+                    languages.sort();
+                    languages.dedup();
+                    CONTEST_LIBRARY.write().unwrap().set(languages);
+                    let (dic, lang) = CONTEST_LIBRARY.write().unwrap().select(&mut rand::thread_rng());
+                    let (ans, sorted) = dic.get(&mut rand::thread_rng()).unwrap();
+                    msg.channel_id
+                        .say(
+                            &ctx,
+                            format!(
+                                "{number}問のコンテストを始めます。\n問 1 (1/{number})\nソートなぞなぞ ソート前の {symbol} な〜んだ？\n{prob}",
+                                number = num,
+                                prob = sorted,
+                                symbol = lang.as_symbol(),
+                            ),
+                        )
+                        .expect("fail to post");
+                    *quiz_guard = bot::Status::Contesting(ans.clone(), sorted.clone(), (1, num), dic.get_anagrams(&sorted), dic.get_full_anagrams(&sorted));
                 }
-            };
-            *DISTRIBUTION.write().unwrap() = Uniform::new(0, contest_languages_guard.len());
-            let lang = (&*contest_languages_guard)
-                .get_index(
-                    DISTRIBUTION
-                        .write()
-                        .unwrap()
-                        .sample(&mut rand::thread_rng()),
-                )
-                .unwrap();
-            let dic = bot::select_dictionary(&lang);
-            let (ans, sorted) = dic.get(&mut rand::thread_rng()).unwrap();
-            msg.channel_id
-                .say(
-                    &ctx,
-                    format!(
-                        "{number}問のコンテストを始めます。\n問 1 (1/{number})\nソートなぞなぞ ソート前の {lang} な〜んだ？\n{prob}",
-                        number = num,
-                        prob = sorted,
-                        lang = lang.as_string(),
-                    ),
-                )
-                .expect("fail to post");
-            *quiz_guard = bot::Status::Contesting(ans.clone(), sorted.clone(), *lang, (1, num));
+            }
         }
     }
     Ok(())
@@ -704,90 +740,52 @@ fn unrated(ctx: &mut Context, msg: &Message) -> CommandResult {
 #[command]
 fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     println!("Got command '~hint' by user '{}'", msg.author.name);
-    if !msg.author.bot {
-        match args.single::<usize>() {
-            Ok(len) => {
-                if let Ok(mut guard) = bot::QUIZ.lock() {
-                    if guard.is_holding() || guard.is_contesting() {
-                        let mut g =
-                            UnicodeSegmentation::graphemes(guard.ans().unwrap().as_str(), true)
-                                .collect::<Vec<&str>>();
-                        match len {
-                            length if length < g.len() && length >= g.len() - 1 => {
-                                msg.channel_id
-                                    .say(
-                                        &ctx,
-                                        "このヒントで答えが一意に定まるのでgiveupとみなします！",
-                                    )
-                                    .expect("fail to post");
-                                match giveup_impl(ctx, msg, &*guard) {
-                                    Some((_, (count, num))) if count > num => {
-                                        msg.channel_id
-                                            .say(
-                                                &ctx,
-                                                format!(
-                                                    "{}問連続のコンテストが終了しました。",
-                                                    num
-                                                ),
-                                            )
-                                            .expect("fail to post");
-                                        *guard = bot::Status::StandingBy;
-                                        return Ok(());
-                                    }
-                                    Some((lang, (count, num))) => {
-                                        let (ans, sorted) =
-                                            contest_continue(ctx, &msg, lang, count, num);
-                                        *guard = bot::Status::Contesting(
-                                            ans.clone(),
-                                            sorted.clone(),
-                                            lang,
-                                            (count, num),
-                                        );
-                                    }
-                                    None => {
-                                        *guard = bot::Status::StandingBy;
-                                    }
-                                }
-                            }
-                            length if length == 0usize => {
-                                msg.channel_id
-                                    .say(&ctx, "0文字のヒントは出せません！")
-                                    .expect("fail to post");
-                            }
-                            length if length < g.len() - 1 => {
-                                g.truncate(len);
-                                msg.channel_id
-                                    .say(
-                                        &ctx,
-                                        format!(
-                                            "答えの先頭 {len} 文字は... => \"{hint}\" ",
-                                            len = len,
-                                            hint = g.into_iter().collect::<String>(),
-                                        ),
-                                    )
-                                    .expect("fail to post");
-                            }
-                            _ => {
-                                msg.channel_id
-                                    .say(&ctx, "ヒントが単語より長過いわ、ボケ")
-                                    .expect("fail to post");
-                            }
-                        }
-                    } else {
-                        msg.channel_id
-                            .say(&ctx, "現在問題は出ていません。")
-                            .expect("fail to post");
-                    }
-                }
-            }
-            Err(e) => {
-                msg.channel_id
-                    .say(&ctx, format!("{:?}", e))
-                    .expect("fail to post");
+
+    if_chain! {
+        if !msg.author.bot;
+        if let Ok(guard) = bot::QUIZ.lock();
+        if guard.is_holding() || guard.is_contesting();
+        then {
+            let mut g = UnicodeSegmentation::graphemes(guard.ans().unwrap().as_str(), true).collect::<Vec<&str>>();
+            match command::hint(&mut args) {
+                Err(err_msg) => {
+                    msg.channel_id
+                        .say(&ctx, format!("{}", err_msg))
+                        .expect("fail to post");
+                },
+                Ok(num) if num == 0 => {
+                    msg.channel_id
+                        .say(&ctx, "ゼロ文字ヒントは意味ねえよ、ボケ！")
+                        .expect("fail to post");
+                },
+                Ok(num) if num == g.len() || num == g.len() - 1 => {
+                    drop(guard);
+                    msg.channel_id
+                        .say(&ctx, "答えが一意に定まるためギブアップとみなされました！")
+                        .expect("fail to post");
+                    giveup_impl(ctx, msg)?;
+                },
+                Ok(num) if num > g.len() => {
+                    msg.channel_id
+                        .say(&ctx, "問題の文字数より長えよボケが！")
+                        .expect("fail to post");
+                },
+                Ok(num) => {
+                    g.truncate(num);
+                    msg.channel_id
+                        .say(
+                            &ctx,
+                            format!(
+                                "答えの先頭 {len} 文字は... => \"{hint}\" ",
+                                len = num,
+                                hint = g.into_iter().collect::<String>(),
+                            ),
+                        )
+                        .expect("fail to post");
+                },
             }
         }
-    };
-
+    }
     Ok(())
 }
 

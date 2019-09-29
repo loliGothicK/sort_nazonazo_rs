@@ -2,10 +2,9 @@ use indexmap::IndexMap;
 use itertools::Itertools;
 use rand::distributions::{Distribution, Uniform};
 
-use rand::Rng;
 use serde_derive::{Deserialize, Serialize};
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::Read;
 
@@ -47,7 +46,8 @@ impl RawDictionary {
 
 pub struct Dictionary {
     pub questions: IndexMap<String, String>,
-    pub full: Option<BTreeMap<String, Vec<String>>>,
+    pub anagrams: BTreeMap<String, BTreeSet<String>>,
+    pub full: Option<BTreeMap<String, BTreeSet<String>>>,
     dist: Uniform<usize>,
 }
 
@@ -63,6 +63,15 @@ impl Dictionary {
     pub fn full_len(&self) -> Option<usize> {
         self.full.as_ref().map(|dic| dic.len())
     }
+
+    pub fn get_anagrams(&self, sorted: &String) -> BTreeSet<String> {
+        self.anagrams.get(sorted).unwrap().clone()
+    }
+
+    pub fn get_full_anagrams(&self, sorted: &String) -> Option<BTreeSet<String>> {
+        self.full.as_ref().map(|dic|dic.get(sorted).unwrap().clone())
+    }
+
 }
 
 impl Into<Dictionary> for RawDictionary {
@@ -78,28 +87,54 @@ impl Into<Dictionary> for RawDictionary {
                     .collect::<String>(),
             );
         }
+
+        let mut anagram_dictionary: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        for word in &self.questions {
+            let sorted = word.clone()
+                .chars()
+                .into_iter()
+                .sorted()
+                .collect::<String>();
+
+            anagram_dictionary
+                .entry(sorted.clone())
+                .and_modify(|e| {
+                    e.insert(word.clone());
+                })
+                .or_insert((|| {
+                    let mut init = BTreeSet::new();
+                    init.insert(word.clone());
+                    init
+                })());
+        }
+
         let mut full_dictionary = None;
         if let Some(fully) = &self.full {
-            let mut full_dic: BTreeMap<String, Vec<String>> = BTreeMap::new();
+            let mut full_dic: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
             for word in fully {
+                let sorted = word.clone()
+                    .chars()
+                    .into_iter()
+                    .sorted()
+                    .collect::<String>();
+
                 full_dic
-                    .entry(word.clone())
+                    .entry(sorted.clone())
                     .and_modify(|e| {
-                        e.push(
-                            word.clone()
-                                .chars()
-                                .into_iter()
-                                .sorted()
-                                .collect::<String>(),
-                        )
+                        e.insert(word.clone());
                     })
-                    .or_insert(vec![word.clone()]);
+                    .or_insert((|| {
+                        let mut init = BTreeSet::new();
+                        init.insert(word.clone());
+                        init
+                    })());
             }
             full_dictionary = Some(full_dic);
         }
 
         Dictionary {
             questions: dictionary.to_owned(),
+            anagrams: anagram_dictionary.to_owned(),
             full: full_dictionary,
             dist: Uniform::new(0, dictionary.len()),
         }
@@ -119,28 +154,54 @@ impl<F: Fn(&String) -> String> Into<Dictionary> for CustomRawDictionary<F> {
                     .collect::<String>(),
             );
         }
+
+        let mut anagram_dictionary: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        for word in &self.questions {
+            let sorted = word.clone()
+                .chars()
+                .into_iter()
+                .sorted()
+                .collect::<String>();
+
+            anagram_dictionary
+                .entry(sorted.clone())
+                .and_modify(|e| {
+                    e.insert(word.clone());
+                })
+                .or_insert((|| {
+                    let mut init = BTreeSet::new();
+                    init.insert(word.clone());
+                    init
+                })());
+        }
+
         let mut full_dictionary = None;
         if let Some(fully) = &self.full {
-            let mut full_dic: BTreeMap<String, Vec<String>> = BTreeMap::new();
+            let mut full_dic: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
             for word in fully {
+                let sorted = word.clone()
+                    .chars()
+                    .into_iter()
+                    .sorted()
+                    .collect::<String>();
+
                 full_dic
-                    .entry(word.clone())
+                    .entry(sorted.clone())
                     .and_modify(|e| {
-                        e.push(
-                            (&self.before)(word)
-                                .chars()
-                                .into_iter()
-                                .sorted()
-                                .collect::<String>(),
-                        )
+                        e.insert(word.clone());
                     })
-                    .or_insert(vec![word.clone()]);
+                    .or_insert((|| {
+                        let mut init = BTreeSet::new();
+                        init.insert(word.clone());
+                        init
+                    })());
             }
             full_dictionary = Some(full_dic);
         }
 
         Dictionary {
             questions: dictionary.to_owned(),
+            anagrams: anagram_dictionary.to_owned(),
             full: full_dictionary,
             dist: Uniform::new(0, dictionary.len()),
         }
