@@ -1,4 +1,7 @@
 use clap::{App, AppSettings, Arg};
+use super::facade;
+
+pub(crate) const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 fn range_validator(low: u32, up: u32) -> Box<dyn Fn(String) -> Result<(), String>> {
     Box::new(move |num: String| match num.parse::<u32>() {
@@ -18,18 +21,18 @@ fn parse_validator<T: std::str::FromStr>(num: String) -> Result<(), String> {
 }
 
 fn language_validator(language: String) -> Result<(), String> {
-    if !crate::QUIZ_COMMANDS_REGEX.is_match(&language) {
+    if !facade::QUIZ_COMMANDS_REGEX.is_match(&language) {
         Err(format!("unexpected language '{}'.", language).to_string())
     } else {
         Ok(())
     }
 }
 
-pub fn contest(
+pub(crate)  fn contest(
     args: &mut serenity::framework::standard::Args,
 ) -> clap::Result<(u32, Vec<String>)> {
     App::new("contest")
-        .version(crate::VERSION)
+        .version(VERSION)
         .setting(AppSettings::ColorNever)
         .arg(
             Arg::with_name("number")
@@ -65,9 +68,9 @@ enum Hint {
     Random(usize),
 }
 
-pub fn hint(args: &mut serenity::framework::standard::Args) -> clap::Result<usize> {
+pub(crate)  fn hint(args: &mut serenity::framework::standard::Args) -> clap::Result<usize> {
     App::new("hint")
-        .version(crate::VERSION)
+        .version(VERSION)
         .setting(AppSettings::ColorNever)
         .arg(
             Arg::with_name("number")
