@@ -1,8 +1,6 @@
 use clap::{App, AppSettings, Arg};
 use super::facade;
 
-pub(crate) const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-
 fn range_validator(low: u32, up: u32) -> Box<dyn Fn(String) -> Result<(), String>> {
     Box::new(move |num: String| match num.parse::<u32>() {
         Err(_) => Err(String::from(
@@ -32,7 +30,7 @@ pub(crate)  fn contest(
     args: &mut serenity::framework::standard::Args,
 ) -> clap::Result<(u32, Vec<String>)> {
     App::new("contest")
-        .version(VERSION)
+        .version("0.0.1")
         .setting(AppSettings::ColorNever)
         .arg(
             Arg::with_name("number")
@@ -63,24 +61,28 @@ pub(crate)  fn contest(
         })
 }
 
-enum Hint {
+#[derive(Debug)]
+pub enum Hint {
     First(usize),
     Random(usize),
 }
 
-pub(crate)  fn hint(args: &mut serenity::framework::standard::Args) -> clap::Result<usize> {
+pub(crate) fn hint(args: &mut serenity::framework::standard::Args) -> clap::Result<Hint> {
     App::new("hint")
-        .version(VERSION)
+        .version("0.0.1")
         .setting(AppSettings::ColorNever)
         .arg(
             Arg::with_name("number")
                 .required(true)
-                .validator(parse_validator::<usize>),
+                .validator(parse_validator::<usize>)
+                .help("Number of hint characters"),
         )
         .arg(
             Arg::with_name("random")
-                .short("rand")
+                .short("r")
                 .long("random")
+                .takes_value(false)
+                .help("flag for random select hint")
                 .required(false)
         )
         .get_matches_from_safe(
@@ -89,5 +91,12 @@ pub(crate)  fn hint(args: &mut serenity::framework::standard::Args) -> clap::Res
                 .chain(args.iter::<String>().filter_map(Result::ok))
                 .into_iter(),
         )
-        .map(|a| a.value_of("number").unwrap().parse::<usize>().unwrap())
+        .map(|matches|{
+            let num = matches.value_of("number").unwrap().parse::<usize>().unwrap();
+            if dbg!(matches.is_present("random")) {
+                Hint::Random(num)
+            } else {
+                Hint::First(num)
+            }
+        })
 }

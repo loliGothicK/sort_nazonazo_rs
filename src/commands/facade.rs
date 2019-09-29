@@ -3,14 +3,14 @@ use serenity::{
     client::Client,
     framework::standard::{
         macros::{command, group},
-        Args, CommandResult, StandardFramework,
+        Args, Delimiter, CommandResult, StandardFramework,
     },
     model::{channel::Message, gateway::Ready},
     prelude::*,
 };
 use std::env;
 use unicode_segmentation::UnicodeSegmentation;
-
+use rand::seq::index::sample;
 use std::collections::BTreeSet;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -78,6 +78,7 @@ group!({
     commands: [help],
 });
 
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 #[command]
 pub fn en(ctx: &mut Context, msg: &Message) -> CommandResult {
@@ -274,11 +275,10 @@ pub fn unrated(ctx: &mut Context, msg: &Message) -> CommandResult {
 #[command]
 pub fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     println!("Got command '~hint' by user '{}'", msg.author.name);
-
     if_chain! {
         if !msg.author.bot;
         if let Ok(mut guard) = bot::QUIZ.lock();
-        if guard.is_holding() || guard.is_contesting();
+        if !guard.is_standing_by();
         then {
             let mut g = UnicodeSegmentation::graphemes(guard.ans().unwrap().as_str(), true).collect::<Vec<&str>>();
             match parser::hint(&mut args) {
@@ -287,33 +287,65 @@ pub fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
                         .say(&ctx, format!("{}", err_msg))
                         .expect("fail to post");
                 },
-                Ok(num) if num == 0 => {
+                Ok(parser::Hint::First(num)) | Ok(parser::Hint::Random(num)) if num == 0 => {
                     msg.channel_id
                         .say(&ctx, "ゼロ文字ヒントは意味ねえよ、ボケ！")
                         .expect("fail to post");
                 },
-                Ok(num) if num == g.len() || num == g.len() - 1 => {
+                Ok(parser::Hint::First(num)) | Ok(parser::Hint::Random(num)) if num == g.len() || num == g.len() - 1 => {
                     msg.channel_id
                         .say(&ctx, "答えが一意に定まるためギブアップとみなされました！")
                         .expect("fail to post");
                     giveup_impl(ctx, msg, &mut *guard)?;
                 },
-                Ok(num) if num > g.len() => {
+                Ok(parser::Hint::First(num)) | Ok(parser::Hint::Random(num)) if num > g.len() => {
                     msg.channel_id
                         .say(&ctx, "問題の文字数より長えよボケが！")
                         .expect("fail to post");
                 },
-                Ok(num) => {
+                Ok(parser::Hint::First(num)) => {
                     g.truncate(num);
                     msg.channel_id
                         .say(
                             &ctx,
                             format!(
-                                "答えの先頭 {len} 文字は... => \"{hint}\" ",
+                                "答えの先頭 {len} 文字は... => `{hint}` ",
                                 len = num,
                                 hint = g.into_iter().collect::<String>(),
                             ),
                         )
+                        .expect("fail to post");
+                },
+                Ok(parser::Hint::Random(num)) => {
+                    let star = "*";
+                    let mut hit_str: Vec<&str> = std::iter::repeat(star).take(g.len()).collect();
+                    for idx in rand::seq::index::sample(&mut rand::thread_rng(), g.len(), num).into_iter() {
+                        if let Some(elem) = hit_str.get_mut(idx) {
+                            *elem = g.get(idx).unwrap();
+                        }
+                    }
+                    msg.channel_id
+                        .say(
+                            &ctx,
+                            format!(
+                                "ランダムヒント {len} 文字... => `{hint}` ",
+                                len = num,
+                                hint = hit_str.join(""),
+                            ),
+                        )
+                        .expect("fail to post");
+                },
+            }
+        } else {
+            match parser::hint(&mut args) {
+                Err(err_msg) => {
+                    msg.channel_id
+                        .say(&ctx, format!("{}", err_msg))
+                        .expect("fail to post");
+                },
+                Ok(_) => {
+                    msg.channel_id
+                        .say(&ctx, "問題が出てないですよ？")
                         .expect("fail to post");
                 },
             }
@@ -356,7 +388,7 @@ USEGE [EXTRA]:
     ~help:
     => 今あなたが使ったコマンドです。見てのとおりです。
                 "#,
-                    version = parser::VERSION
+                    version = VERSION
                 ),
             )
             .expect("fail to post");
