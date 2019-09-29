@@ -1,39 +1,36 @@
 //#![feature(async_await)]
-#[macro_use] extern crate lazy_static;
-#[macro_use] extern crate if_chain;
-#[macro_use] extern crate custom_derive;
-#[macro_use] extern crate enum_derive;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate if_chain;
+#[macro_use]
+extern crate custom_derive;
+#[macro_use]
+extern crate enum_derive;
 extern crate clap;
 extern crate regex;
 extern crate toml;
 extern crate unicode_segmentation;
 //extern crate nazonazo_macros;
 
-use std::env;
-use unicode_segmentation::UnicodeSegmentation;
 use regex::Regex;
 use serenity::{
-    client::{
-        Client,
-    },
+    client::Client,
     framework::standard::{
         macros::{command, group},
-        Args, CommandResult,
-        StandardFramework,
+        Args, CommandResult, StandardFramework,
     },
-    model::{
-        channel::Message,
-        gateway::Ready,
-    },
+    model::{channel::Message, gateway::Ready},
     prelude::*,
 };
+use std::env;
+use unicode_segmentation::UnicodeSegmentation;
 
+use std::collections::BTreeSet;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::iter::FromIterator;
 use std::str::from_utf8;
-use std::collections::BTreeSet;
-
 
 pub mod dictionary;
 
@@ -108,14 +105,18 @@ pub mod command {
 
     fn range_validator(low: u32, up: u32) -> Box<dyn Fn(String) -> Result<(), String>> {
         Box::new(move |num: String| match num.parse::<u32>() {
-            Err(_) => Err(String::from("please specify unsigned integer after '~contest'.")),
+            Err(_) => Err(String::from(
+                "please specify unsigned integer after '~contest'.",
+            )),
             Ok(num) if num == low => Err(String::from("too small number.")),
             Ok(num) if num > up => Err(String::from("too large number.")),
             Ok(_) => Ok(()),
         })
     }
     fn parse_validator<T: std::str::FromStr>(num: String) -> Result<(), String> {
-        num.parse::<T>().map(|_|()).map_err(|_| format!("`{}` is invalid.", num).to_string())
+        num.parse::<T>()
+            .map(|_| ())
+            .map_err(|_| format!("`{}` is invalid.", num).to_string())
     }
     fn language_validator(language: String) -> Result<(), String> {
         if !crate::QUIZ_COMMANDS_REGEX.is_match(&language) {
@@ -124,28 +125,37 @@ pub mod command {
             Ok(())
         }
     }
-    pub fn contest(args: &mut serenity::framework::standard::Args) -> clap::Result<(u32, Vec<String>)> {
+    pub fn contest(
+        args: &mut serenity::framework::standard::Args,
+    ) -> clap::Result<(u32, Vec<String>)> {
         App::new("contest")
             .version(crate::VERSION)
             .setting(AppSettings::ColorNever)
             .arg(
                 Arg::with_name("number")
                     .required(true)
-                    .validator(range_validator(1, 100)))
+                    .validator(range_validator(1, 100)),
+            )
             .arg(
                 Arg::with_name("languages")
                     .required(true)
                     .use_delimiter(true)
                     .validator(language_validator)
-                    .min_values(1))
+                    .min_values(1),
+            )
             .get_matches_from_safe(
                 vec!["contest".to_string()]
                     .into_iter()
                     .chain(args.iter::<String>().filter_map(Result::ok))
-                    .into_iter())
+                    .into_iter(),
+            )
             .map(|a| {
                 let num = a.value_of("number").unwrap().parse::<u32>().unwrap();
-                let languages = a.values_of("languages").unwrap().map(str::to_string).collect::<Vec<_>>();
+                let languages = a
+                    .values_of("languages")
+                    .unwrap()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>();
                 (num, languages)
             })
     }
@@ -162,7 +172,8 @@ pub mod command {
                 vec!["contest".to_string()]
                     .into_iter()
                     .chain(args.iter::<String>().filter_map(Result::ok))
-                    .into_iter())
+                    .into_iter(),
+            )
             .map(|a| a.value_of("number").unwrap().parse::<usize>().unwrap())
     }
 }
@@ -170,11 +181,11 @@ pub mod command {
 pub mod bot {
 
     use super::dictionary::*;
-    use indexmap::{IndexSet};
+    use indexmap::IndexSet;
+    use rand::distributions::{Distribution, Uniform};
     use std::collections::{BTreeMap, BTreeSet};
     use std::sync::RwLock;
     use std::sync::{Arc, Mutex};
-    use rand::distributions::{Distribution, Uniform};
 
     custom_derive! {
         #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, NextVariant, PrevVariant)]
@@ -216,7 +227,13 @@ pub mod bot {
     pub enum Status {
         StandingBy,
         Holding(String, String, BTreeSet<String>, Option<BTreeSet<String>>),
-        Contesting(String, String, (u32, u32), BTreeSet<String>, Option<BTreeSet<String>>),
+        Contesting(
+            String,
+            String,
+            (u32, u32),
+            BTreeSet<String>,
+            Option<BTreeSet<String>>,
+        ),
     }
 
     impl Status {
@@ -278,14 +295,13 @@ pub mod bot {
         pub fn new() -> DictionarySelector {
             DictionarySelector {
                 engine: Ok(Lang::En),
-                set: Default::default()
+                set: Default::default(),
             }
         }
         pub fn set<S: Into<String>>(&mut self, languages: Vec<S>) {
             if languages.len() == 1 {
                 self.engine = Ok(Lang::from(languages.into_iter().next().unwrap()));
-            }
-            else {
+            } else {
                 self.engine = Err(Uniform::new(0, languages.len()));
                 for lang in languages {
                     self.set.insert(Lang::from(lang));
@@ -293,10 +309,10 @@ pub mod bot {
             }
         }
         pub fn select<Engine: rand::Rng>(&self, rng: &mut Engine) -> (&'static Dictionary, Lang) {
-            let lang =
-                *self.engine.as_ref().unwrap_or_else(
-                    |uniform| self.set.get_index(uniform.sample(rng)).unwrap()
-                );
+            let lang = *self
+                .engine
+                .as_ref()
+                .unwrap_or_else(|uniform| self.set.get_index(uniform.sample(rng)).unwrap());
             (select_dictionary(lang.clone()), lang)
         }
     }
@@ -304,11 +320,16 @@ pub mod bot {
     lazy_static! {
         pub static ref QUIZ: Arc<Mutex<Status>> = Arc::new(Mutex::new(Status::StandingBy));
         pub static ref CONTEST_REUSLT: RwLock<BTreeMap<String, u32>> = RwLock::new(BTreeMap::new());
-        pub static ref CONTEST_LIBRARY: RwLock<DictionarySelector> = RwLock::new(DictionarySelector::new());
+        pub static ref CONTEST_LIBRARY: RwLock<DictionarySelector> =
+            RwLock::new(DictionarySelector::new());
     }
 }
 
-fn prob(ctx: &mut Context, msg: &Message, lang: bot::Lang) -> (String, String, BTreeSet<String>, Option<BTreeSet<String>>) {
+fn prob(
+    ctx: &mut Context,
+    msg: &Message,
+    lang: bot::Lang,
+) -> (String, String, BTreeSet<String>, Option<BTreeSet<String>>) {
     println!("called prob");
     let dic = match lang {
         bot::Lang::En => &*dictionary::ENGLISH,
@@ -328,7 +349,12 @@ fn prob(ctx: &mut Context, msg: &Message, lang: bot::Lang) -> (String, String, B
             ),
         )
         .expect("fail to post");
-    (ans.clone(), sorted.clone(), dic.get_anagrams(&sorted), dic.get_full_anagrams(&sorted))
+    (
+        ans.clone(),
+        sorted.clone(),
+        dic.get_anagrams(&sorted),
+        dic.get_full_anagrams(&sorted),
+    )
 }
 
 fn contest_continue(
@@ -337,7 +363,10 @@ fn contest_continue(
     count: u32,
     num: u32,
 ) -> (String, String, BTreeSet<String>, Option<BTreeSet<String>>) {
-    let (dic, lang) = bot::CONTEST_LIBRARY.read().unwrap().select(&mut rand::thread_rng());
+    let (dic, lang) = bot::CONTEST_LIBRARY
+        .read()
+        .unwrap()
+        .select(&mut rand::thread_rng());
     let (ans, sorted) = dic.get(&mut rand::thread_rng()).unwrap();
     msg.channel_id
         .say(
@@ -351,11 +380,16 @@ fn contest_continue(
             ),
         )
         .expect("fail to post");
-    (ans.clone(), sorted.clone(), dic.get_anagrams(&sorted), dic.get_full_anagrams(&sorted))
+    (
+        ans.clone(),
+        sorted.clone(),
+        dic.get_anagrams(&sorted),
+        dic.get_full_anagrams(&sorted),
+    )
 }
 
 fn kick(ctx: &mut Context, msg: &Message) -> std::io::Result<()> {
-    use std::process::{Command};
+    use std::process::Command;
     let mut src = BufWriter::new(File::create("/tmp/main.rs")?);
     let code = format!(
         r#"fn kick() {{
@@ -379,10 +413,12 @@ fn main() {{
                     .say(&ctx, from_utf8(output.stderr.as_slice()).unwrap())
                     .expect("fail to post");
             }
-        },
+        }
         Err(e) => {
-            msg.channel_id.say(&ctx, format!("{:?}", e)).expect("fail to post");
-        },
+            msg.channel_id
+                .say(&ctx, format!("{:?}", e))
+                .expect("fail to post");
+        }
     }
     Ok(())
 }
@@ -408,24 +444,30 @@ fn answer_check(ctx: &mut Context, msg: &Message) {
                             &ctx,
                             format!(
                                 "{} さん、{} は非想定解ですが正解です！",
-                                &msg.author.name, &msg.content.to_lowercase()
+                                &msg.author.name,
+                                &msg.content.to_lowercase()
                             ),
                         )
                         .expect("fail to post");
                     *quiz_guard = bot::Status::StandingBy;
-                } else if full_anagram.as_ref().map(|x|x.contains(&msg.content.to_lowercase())).unwrap_or_default() {
+                } else if full_anagram
+                    .as_ref()
+                    .map(|x| x.contains(&msg.content.to_lowercase()))
+                    .unwrap_or_default()
+                {
                     msg.channel_id
                         .say(
                             &ctx,
                             format!(
                                 "{} さん、{} は出題辞書に非想定解ですが正解です！",
-                                &msg.author.name, &msg.content.to_lowercase()
+                                &msg.author.name,
+                                &msg.content.to_lowercase()
                             ),
                         )
                         .expect("fail to post");
                     *quiz_guard = bot::Status::StandingBy;
                 }
-            },
+            }
             bot::Status::Contesting(ref ans, _, (count, num), anagram, full_anagram) => {
                 let mut finally = false;
                 if &ans.to_lowercase() == &msg.content.to_lowercase() {
@@ -445,18 +487,24 @@ fn answer_check(ctx: &mut Context, msg: &Message) {
                             &ctx,
                             format!(
                                 "{} さん、{} は非想定解ですが正解です！",
-                                &msg.author.name, &msg.content.to_lowercase()
+                                &msg.author.name,
+                                &msg.content.to_lowercase()
                             ),
                         )
                         .expect("fail to post");
                     finally = true;
-                } else if full_anagram.as_ref().map(|x|x.contains(&msg.content.to_lowercase())).unwrap_or_default() {
+                } else if full_anagram
+                    .as_ref()
+                    .map(|x| x.contains(&msg.content.to_lowercase()))
+                    .unwrap_or_default()
+                {
                     msg.channel_id
                         .say(
                             &ctx,
                             format!(
                                 "{} さん、{} は出題辞書に非想定解ですが正解です！",
-                                &msg.author.name, &msg.content.to_lowercase()
+                                &msg.author.name,
+                                &msg.content.to_lowercase()
                             ),
                         )
                         .expect("fail to post");
@@ -505,7 +553,7 @@ fn answer_check(ctx: &mut Context, msg: &Message) {
                         );
                     }
                 }
-            },
+            }
             _ => {}
         }
     }
@@ -634,10 +682,7 @@ fn it(ctx: &mut Context, msg: &Message) -> CommandResult {
     Ok(())
 }
 
-fn giveup_impl(
-    ctx: &mut Context,
-    msg: &Message,
-) -> CommandResult {
+fn giveup_impl(ctx: &mut Context, msg: &Message) -> CommandResult {
     if_chain! {
         if !msg.author.bot;
         if let Ok(mut guard) = bot::QUIZ.lock();
