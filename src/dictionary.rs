@@ -160,7 +160,7 @@ impl<F: Fn(&String) -> String> Into<Dictionary> for CustomRawDictionary<F> {
 
         let mut anagram_dictionary: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
         for word in &self.questions {
-            let sorted = word
+            let sorted = (&self.before)(word)
                 .clone()
                 .chars()
                 .into_iter()
@@ -183,7 +183,7 @@ impl<F: Fn(&String) -> String> Into<Dictionary> for CustomRawDictionary<F> {
         if let Some(fully) = &self.full {
             let mut full_dic: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
             for word in fully {
-                let sorted = word
+                let sorted = (&self.before)(word)
                     .clone()
                     .chars()
                     .into_iter()
