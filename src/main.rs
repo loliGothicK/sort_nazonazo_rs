@@ -26,13 +26,6 @@ use serenity::{
 };
 use std::env;
 
-
-
-
-
-
-
-
 pub mod bot;
 pub mod commands;
 pub mod dictionary;
@@ -59,7 +52,7 @@ fn main() {
                     "Got command '{}' by user '{}'",
                     command_name, msg.author.name
                 );
-                if facade::QUIZ_COMMANDS.contains(&command_name.to_string()) {
+                if facade::QUIZ_COMMANDS_REGEX.is_match(&command_name.to_string()) {
                     match &*bot::QUIZ.lock().unwrap() {
                         bot::Status::Holding(_, ref sorted, ..) => {
                             msg.channel_id

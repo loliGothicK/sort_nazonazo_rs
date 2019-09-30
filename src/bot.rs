@@ -13,6 +13,7 @@ custom_derive! {
         Fr,
         De,
         It,
+        Ru,
     }
 }
 
@@ -24,6 +25,7 @@ impl Lang {
             Lang::Fr => "仏単語".to_string(),
             Lang::De => "独単語".to_string(),
             Lang::It => "伊単語".to_string(),
+            Lang::Ru => "露単語".to_string(),
         }
     }
 }
@@ -37,6 +39,7 @@ impl<S: Into<String>> From<S> for Lang {
             fr if fr == "fr" => Lang::Fr,
             de if de == "de" => Lang::De,
             it if it == "it" => Lang::It,
+            ru if ru == "ru" => Lang::Ru,
             _ => panic!("unexpected language token!"),
         }
     }
@@ -89,6 +92,7 @@ pub fn select_dictionary(lang: Lang) -> &'static Dictionary {
         Lang::Fr => &*FRENCH,
         Lang::De => &*GERMAN,
         Lang::It => &*ITALIAN,
+        Lang::Ru => &*RUSSIAN,
     }
 }
 
@@ -100,6 +104,7 @@ pub fn select_dictionary_from_str<S: Into<String>>(lang: S) -> &'static Dictiona
         fr if fr == "fr" => &*FRENCH,
         de if de == "de" => &*GERMAN,
         it if it == "it" => &*ITALIAN,
+        ru if ru == "ru" => &*RUSSIAN,
         _ => panic!("unexpected language token!"),
     }
 }

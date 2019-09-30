@@ -32,6 +32,7 @@ pub(crate) fn prob(
         bot::Lang::Fr => &*dictionary::FRENCH,
         bot::Lang::De => &*dictionary::GERMAN,
         bot::Lang::It => &*dictionary::ITALIAN,
+        bot::Lang::Ru => &*dictionary::RUSSIAN,
     };
     let (ans, sorted) = dic.get(&mut rand::thread_rng()).unwrap();
     msg.channel_id

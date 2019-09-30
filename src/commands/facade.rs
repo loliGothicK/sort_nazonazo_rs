@@ -37,13 +37,13 @@ macro_rules! quiz_commands {
         lazy_static! {
             pub static ref QUIZ_COMMANDS: [String; COMMAND_NUM] = [stringify!($command).to_string(), $(stringify!($commands).to_string(),)*];
             pub static ref QUIZ_COMMANDS_REGEX: Regex = Regex::new(
-                &vec!["^(", stringify!($command), $("|", stringify!($commands),)* ")$"].join("")
+                &vec!["^(contest|", stringify!($command), $("|", stringify!($commands),)* ")$"].join("")
             ).unwrap();
         }
     };
 }
 
-quiz_commands!(en, ja, fr, de, it);
+quiz_commands!(en, ja, fr, de, it, ru);
 /*
 quiz_commands! {
     en: {
@@ -141,6 +141,19 @@ pub fn it(ctx: &mut Context, msg: &Message) -> CommandResult {
         if let Ok(mut guard) = bot::QUIZ.lock();
         then {
             let (ans, sorted, anagram, full_anagram) = executors::prob(ctx, &msg, bot::Lang::It);
+            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), anagram, full_anagram);
+        }
+    }
+    Ok(())
+}
+#[command]
+pub fn ru(ctx: &mut Context, msg: &Message) -> CommandResult {
+    println!("Got command '~ru' by user '{}'", msg.author.name);
+    if_chain! {
+        if !msg.author.bot;
+        if let Ok(mut guard) = bot::QUIZ.lock();
+        then {
+            let (ans, sorted, anagram, full_anagram) = executors::prob(ctx, &msg, bot::Lang::Ru);
             *guard = bot::Status::Holding(ans.clone(), sorted.clone(), anagram, full_anagram);
         }
     }

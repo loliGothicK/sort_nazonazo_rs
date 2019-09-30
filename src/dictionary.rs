@@ -242,4 +242,9 @@ lazy_static! {
         println!("ITALIAN is loaded: len = {}", dictionary.questions.len());
         dictionary
     };
+    pub static ref RUSSIAN: Dictionary = {
+        let dictionary: Dictionary = RawDictionary::from_toml("russian.toml").unwrap().into();
+        println!("ITALIAN is loaded: len = {}", dictionary.questions.len());
+        dictionary
+    };
 }
