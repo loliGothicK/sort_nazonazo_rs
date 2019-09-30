@@ -228,8 +228,11 @@ pub fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
 pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     use crate::bot::CONTEST_LIBRARY;
     println!("Got command '~contest' by user '{}'", msg.author.name);
-    if !msg.author.bot {
-        if let Ok(mut quiz_guard) = bot::QUIZ.lock() {
+    if_chain! {
+        if !msg.author.bot;
+        if let Ok(mut quiz_guard) = bot::QUIZ.lock();
+        if quiz_guard.is_standing_by();
+        then {
             match parser::contest(&mut args) {
                 Err(err_msg) => {
                     msg.channel_id.say(&ctx, err_msg).expect("fail to post");

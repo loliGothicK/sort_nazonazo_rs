@@ -35,14 +35,18 @@ pub(crate) fn contest(
         .arg(
             Arg::with_name("number")
                 .required(true)
-                .validator(range_validator(1, 100)),
+                .validator(range_validator(1, 100))
+                .help("Number of contest problems"),
         )
         .arg(
             Arg::with_name("languages")
                 .required(true)
                 .use_delimiter(true)
                 .validator(language_validator)
-                .min_values(1),
+                .takes_value(true)
+                .default_value(facade::QUIZ_COMMANDS.to_vec().join(",").as_str())
+                .min_values(1)
+                .help("List of contest languages"),
         )
         .get_matches_from_safe(
             vec!["contest".to_string()]
@@ -50,14 +54,18 @@ pub(crate) fn contest(
                 .chain(args.iter::<String>().filter_map(Result::ok))
                 .into_iter(),
         )
-        .map(|a| {
-            let num = a.value_of("number").unwrap().parse::<u32>().unwrap();
-            let languages = a
-                .values_of("languages")
-                .unwrap()
-                .map(str::to_string)
-                .collect::<Vec<_>>();
-            (num, languages)
+        .map(|matches| {
+            let num = matches.value_of("number").unwrap().parse::<u32>().unwrap();
+            if matches.is_present("full") {
+                (num, facade::QUIZ_COMMANDS.to_vec())
+            } else {
+                let languages = matches
+                    .values_of("languages")
+                    .unwrap()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>();
+                (num, languages)
+            }
         })
 }
 
@@ -82,7 +90,7 @@ pub(crate) fn hint(args: &mut serenity::framework::standard::Args) -> clap::Resu
                 .short("r")
                 .long("random")
                 .takes_value(false)
-                .help("flag for random select hint")
+                .help("Flag for random select hint")
                 .required(false),
         )
         .get_matches_from_safe(
@@ -97,7 +105,7 @@ pub(crate) fn hint(args: &mut serenity::framework::standard::Args) -> clap::Resu
                 .unwrap()
                 .parse::<usize>()
                 .unwrap();
-            if dbg!(matches.is_present("random")) {
+            if matches.is_present("random") {
                 Hint::Random(num)
             } else {
                 Hint::First(num)
