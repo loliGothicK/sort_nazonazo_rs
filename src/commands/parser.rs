@@ -94,7 +94,7 @@ pub(crate) fn hint(args: &mut serenity::framework::standard::Args) -> clap::Resu
                 .required(false),
         )
         .get_matches_from_safe(
-            vec!["contest".to_string()]
+            vec!["hint".to_string()]
                 .into_iter()
                 .chain(args.iter::<String>().filter_map(Result::ok))
                 .into_iter(),
