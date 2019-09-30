@@ -169,6 +169,11 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
                 msg.channel_id
                     .say(&ctx, format!("正解は \"{}\" でした...", ans))
                     .expect("fail to post");
+                let _ = *bot::CONTEST_REUSLT
+                    .write()
+                    .unwrap()
+                    .entry("~giveup".to_string())
+                    .or_insert(0) += 1;
                 if let Ok(mut contest_result) = bot::CONTEST_REUSLT.write() {
                     if &count == &num {
                         let mut v = Vec::from_iter(contest_result.iter());

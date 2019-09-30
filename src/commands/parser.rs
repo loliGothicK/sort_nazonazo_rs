@@ -49,23 +49,18 @@ pub(crate) fn contest(
                 .help("List of contest languages"),
         )
         .get_matches_from_safe(
-            vec!["contest".to_string()]
-                .into_iter()
+            std::iter::once("contest".to_string())
                 .chain(args.iter::<String>().filter_map(Result::ok))
                 .into_iter(),
         )
         .map(|matches| {
             let num = matches.value_of("number").unwrap().parse::<u32>().unwrap();
-            if matches.is_present("full") {
-                (num, facade::QUIZ_COMMANDS.to_vec())
-            } else {
-                let languages = matches
-                    .values_of("languages")
-                    .unwrap()
-                    .map(str::to_string)
-                    .collect::<Vec<_>>();
-                (num, languages)
-            }
+            let languages = matches
+                .values_of("languages")
+                .unwrap()
+                .map(str::to_string)
+                .collect::<Vec<_>>();
+            (num, languages)
         })
 }
 
@@ -94,8 +89,7 @@ pub(crate) fn hint(args: &mut serenity::framework::standard::Args) -> clap::Resu
                 .required(false),
         )
         .get_matches_from_safe(
-            vec!["hint".to_string()]
-                .into_iter()
+            std::iter::once("hint".to_string())
                 .chain(args.iter::<String>().filter_map(Result::ok))
                 .into_iter(),
         )

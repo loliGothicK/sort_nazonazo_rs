@@ -48,10 +48,6 @@ fn main() {
         StandardFramework::new()
             .configure(|c| c.prefix("~")) // set the bot's prefix to "~"
             .before(|ctx, msg, command_name| {
-                println!(
-                    "Got command '{}' by user '{}'",
-                    command_name, msg.author.name
-                );
                 if facade::QUIZ_COMMANDS_REGEX.is_match(&command_name.to_string()) {
                     match &*bot::QUIZ.lock().unwrap() {
                         bot::Status::Holding(_, ref sorted, ..) => {
@@ -81,7 +77,6 @@ fn main() {
                     println!("{:?}", executors::kick(ctx, msg));
                     return;
                 }
-                println!("got message \"{}\"", &msg.content);
                 executors::answer_check(ctx, msg);
             })
             .group(&commands::facade::QUIZ_GROUP)
