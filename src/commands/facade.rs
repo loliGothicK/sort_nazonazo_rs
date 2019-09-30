@@ -1,4 +1,3 @@
-
 use regex::Regex;
 use serenity::{
     client::Client,
@@ -12,12 +11,12 @@ use serenity::{
 
 use std::env;
 
-use std::io::{Write};
+use std::io::Write;
 use std::iter::FromIterator;
 
 use unicode_segmentation::UnicodeSegmentation;
 
-use super::super::{bot};
+use super::super::bot;
 use super::{executors, parser};
 
 macro_rules! count {

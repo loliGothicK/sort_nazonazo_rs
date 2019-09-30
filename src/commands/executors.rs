@@ -1,4 +1,3 @@
-
 use serenity::{
     client::Client,
     framework::standard::{
@@ -8,8 +7,6 @@ use serenity::{
     model::{channel::Message, gateway::Ready},
     prelude::*,
 };
-
-
 
 use std::collections::BTreeSet;
 use std::fs::File;
