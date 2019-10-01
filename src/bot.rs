@@ -4,6 +4,10 @@ use rand::distributions::{Distribution, Uniform};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::RwLock;
 use std::sync::{Arc, Mutex};
+use itertools::Itertools;
+use super::sort::Sorted;
+use serenity::client::Context;
+use serenity::model::channel::Message;
 
 custom_derive! {
     #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, NextVariant, PrevVariant)]
@@ -45,16 +49,41 @@ impl<S: Into<String>> From<S> for Lang {
     }
 }
 
+pub fn get_dictionary(lang: Lang) -> &'static Dictionary {
+    match lang {
+        Lang::En => &*ENGLISH,
+        Lang::Ja => &*JAPANESE,
+        Lang::Fr => &*FRENCH,
+        Lang::De => &*GERMAN,
+        Lang::It => &*ITALIAN,
+        Lang::Ru => &*RUSSIAN,
+    }
+}
+
+pub fn select_dictionary_from_str<S: Into<String>>(lang: S) -> &'static Dictionary {
+    let lang_string: String = lang.into();
+    match lang_string {
+        en if en == "en" => &*ENGLISH,
+        ja if ja == "ja" => &*JAPANESE,
+        fr if fr == "fr" => &*FRENCH,
+        de if de == "de" => &*GERMAN,
+        it if it == "it" => &*ITALIAN,
+        ru if ru == "ru" => &*RUSSIAN,
+        _ => panic!("unexpected language token!"),
+    }
+}
+
 pub enum Status {
     StandingBy,
-    Holding(String, String, BTreeSet<String>, Option<BTreeSet<String>>),
-    Contesting(
-        String,
-        String,
-        (u32, u32),
-        BTreeSet<String>,
-        Option<BTreeSet<String>>,
-    ),
+    Holding(String, Lang),
+    Contesting(String, Lang, (u32, u32)),
+}
+
+pub enum CheckResult<'a> {
+    Assumed(&'a String),
+    Anagram(&'a String),
+    Full(&'a String),
+    WA,
 }
 
 impl Status {
@@ -83,29 +112,79 @@ impl Status {
             Status::Holding(ans, ..) | Status::Contesting(ans, ..) => Ok(ans),
         }
     }
-}
 
-pub fn select_dictionary(lang: Lang) -> &'static Dictionary {
-    match lang {
-        Lang::En => &*ENGLISH,
-        Lang::Ja => &*JAPANESE,
-        Lang::Fr => &*FRENCH,
-        Lang::De => &*GERMAN,
-        Lang::It => &*ITALIAN,
-        Lang::Ru => &*RUSSIAN,
+    pub fn get_dictionary(&self) -> Result<&Dictionary, ()> {
+        match self {
+            Status::StandingBy => Err(()),
+            Status::Contesting(_, lang, ..) | Status::Holding(_, lang) => Ok(get_dictionary(*lang)),
+        }
     }
-}
 
-pub fn select_dictionary_from_str<S: Into<String>>(lang: S) -> &'static Dictionary {
-    let lang_string: String = lang.into();
-    match lang_string {
-        en if en == "en" => &*ENGLISH,
-        ja if ja == "ja" => &*JAPANESE,
-        fr if fr == "fr" => &*FRENCH,
-        de if de == "de" => &*GERMAN,
-        it if it == "it" => &*ITALIAN,
-        ru if ru == "ru" => &*RUSSIAN,
-        _ => panic!("unexpected language token!"),
+    pub fn is_correct_answer(&self, got: &String) -> bool {
+        match self {
+            Status::StandingBy => false,
+            Status::Contesting(ans, ..) | Status::Holding(ans, ..) => ans == got.to_lowercase(),
+        }
+    }
+
+    pub fn is_anagram(&self, got: &String) -> bool {
+        match self {
+            Status::StandingBy => false,
+            _ => self.ans().unwrap().sorted() == got.to_lowercase().sorted() && self.get_dictionary().unwrap().contains(got)
+        }
+    }
+
+    pub fn is_anagram_by_full(&self, got: &String) -> bool {
+        match self {
+            Status::StandingBy => false,
+            _ => self.ans().unwrap().sorted() == got.to_lowercase().sorted() && self.get_dictionary().unwrap().contains_ex(got)
+        }
+    }
+
+    pub fn answer_check<'a>(&self, msg: &'a String) -> CheckResult<'a> {
+        match self {
+            _ if self.is_correct_answer(msg) => CheckResult::Assumed(msg),
+            _ if self.is_anagram(msg) => CheckResult::Anagram(msg),
+            _ if self.is_anagram_by_full(msg) => CheckResult::Full(msg),
+            _ => CheckResult::WA,
+        }
+    }
+
+    pub fn is_contest_end(&self) -> bool {
+        match self {
+            _ => false,
+            Status::Contesting(_, _, (count, num)) => count == num,
+        }
+    }
+
+    pub fn get_contest_num(&self) -> Option<(&u32, &u32)> {
+        match self {
+            _ => None,
+            Status::Contesting(_, _, (count, num)) => Some((count, num)),
+        }
+    }
+
+    pub fn contest_continue(&mut self, ctx: &mut Context, msg: &Message) {
+        let (dic, lang) = CONTEST_LIBRARY
+            .lock()
+            .unwrap()
+            .select(&mut rand::thread_rng());
+        let ans = dic.get(&mut rand::thread_rng());
+        let sorted = ans.sorted();
+        let (count, num) = self.get_contest_num().unwrap();
+        msg.channel_id
+            .say(
+                &ctx,
+                format!(
+                    "問 {current} ({current}/{number})\nソートなぞなぞ ソート前の {symbol} な〜んだ？\n{prob}",
+                    number = num,
+                    current = count,
+                    prob = sorted,
+                    symbol = lang.as_symbol(),
+                ),
+            )
+            .expect("fail to post");
+        *self = Status::Contesting(ans.to_string(), lang, (*count + 1, *num));
     }
 }
 
@@ -136,7 +215,7 @@ impl DictionarySelector {
             .engine
             .as_ref()
             .unwrap_or_else(|uniform| self.set.get_index(uniform.sample(rng)).unwrap());
-        (select_dictionary(lang.clone()), lang)
+        (get_dictionary(lang.clone()), lang)
     }
 }
 

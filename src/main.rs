@@ -29,8 +29,11 @@ use std::env;
 pub mod bot;
 pub mod commands;
 pub mod dictionary;
+pub mod sort;
+use sort::Sorted;
 
 use commands::{executors, facade};
+use itertools::Itertools;
 
 struct Handler;
 
@@ -50,18 +53,18 @@ fn main() {
             .before(|ctx, msg, command_name| {
                 if facade::QUIZ_COMMANDS_REGEX.is_match(&command_name.to_string()) {
                     match &*bot::QUIZ.lock().unwrap() {
-                        bot::Status::Holding(_, ref sorted, ..) => {
+                        bot::Status::Holding(ref ans, ..) => {
                             msg.channel_id
                                 .say(
                                     &ctx,
-                                    format!("前回の出題が解かれていません\n問題: {}", sorted),
+                                    format!("前回の出題が解かれていません\n問題: {}", ans.sorted()),
                                 )
                                 .expect("fail to post");
                             false
                         }
-                        bot::Status::Contesting(_, ref sorted, ..) => {
+                        bot::Status::Contesting(ref ans, ..) => {
                             msg.channel_id
-                                .say(&ctx, format!("現在コンテスト中です\n問題: {}", sorted))
+                                .say(&ctx, format!("現在コンテスト中です\n問題: {}",  ans.sorted()))
                                 .expect("fail to post");
                             false
                         }

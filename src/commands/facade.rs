@@ -15,6 +15,8 @@ use std::iter::FromIterator;
 use unicode_segmentation::UnicodeSegmentation;
 use super::super::bot;
 use super::{executors, parser};
+use itertools::Itertools;
+use super::super::sort::Sorted;
 
 macro_rules! count {
     ( $x:ident ) => (1usize);
@@ -83,8 +85,8 @@ pub fn en(ctx: &mut Context, msg: &Message) -> CommandResult {
         if !msg.author.bot;
         if let Ok(mut guard) = bot::QUIZ.lock();
         then {
-            let (ans, sorted, anagram, full_anagram) = executors::prob(ctx, &msg, bot::Lang::En);
-            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), anagram, full_anagram);
+            let ans = executors::prob(ctx, &msg, bot::Lang::En);
+            *guard = bot::Status::Holding(ans.clone(), bot::Lang::En);
         }
     }
     Ok(())
@@ -97,8 +99,8 @@ pub fn ja(ctx: &mut Context, msg: &Message) -> CommandResult {
         if !msg.author.bot;
         if let Ok(mut guard) = bot::QUIZ.lock();
         then {
-            let (ans, sorted, anagram, full_anagram) = executors::prob(ctx, &msg, bot::Lang::Ja);
-            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), anagram, full_anagram);
+            let ans = executors::prob(ctx, &msg, bot::Lang::Ja);
+            *guard = bot::Status::Holding(ans.clone(), bot::Lang::Ja);
         }
     }
     Ok(())
@@ -110,8 +112,8 @@ pub fn fr(ctx: &mut Context, msg: &Message) -> CommandResult {
         if !msg.author.bot;
         if let Ok(mut guard) = bot::QUIZ.lock();
         then {
-            let (ans, sorted, anagram, full_anagram) = executors::prob(ctx, &msg, bot::Lang::Fr);
-            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), anagram, full_anagram);
+            let ans = executors::prob(ctx, &msg, bot::Lang::Fr);
+            *guard = bot::Status::Holding(ans.clone(), bot::Lang::Fr);
         }
     }
     Ok(())
@@ -123,8 +125,8 @@ pub fn de(ctx: &mut Context, msg: &Message) -> CommandResult {
         if !msg.author.bot;
         if let Ok(mut guard) = bot::QUIZ.lock();
         then {
-            let (ans, sorted, anagram, full_anagram) = executors::prob(ctx, &msg, bot::Lang::De);
-            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), anagram, full_anagram);
+            let ans = executors::prob(ctx, &msg, bot::Lang::De);
+            *guard = bot::Status::Holding(ans.clone(), bot::Lang::De);
         }
     }
     Ok(())
@@ -136,8 +138,8 @@ pub fn it(ctx: &mut Context, msg: &Message) -> CommandResult {
         if !msg.author.bot;
         if let Ok(mut guard) = bot::QUIZ.lock();
         then {
-            let (ans, sorted, anagram, full_anagram) = executors::prob(ctx, &msg, bot::Lang::It);
-            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), anagram, full_anagram);
+            let ans = executors::prob(ctx, &msg, bot::Lang::It);
+            *guard = bot::Status::Holding(ans.clone(), bot::Lang::It);
         }
     }
     Ok(())
@@ -149,8 +151,8 @@ pub fn ru(ctx: &mut Context, msg: &Message) -> CommandResult {
         if !msg.author.bot;
         if let Ok(mut guard) = bot::QUIZ.lock();
         then {
-            let (ans, sorted, anagram, full_anagram) = executors::prob(ctx, &msg, bot::Lang::Ru);
-            *guard = bot::Status::Holding(ans.clone(), sorted.clone(), anagram, full_anagram);
+            let ans = executors::prob(ctx, &msg, bot::Lang::Ru);
+            *guard = bot::Status::Holding(ans.clone(), bot::Lang::Ru);
         }
     }
     Ok(())
@@ -165,16 +167,12 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
                     .expect("fail to post");
                 *quiz_stat = bot::Status::StandingBy;
             }
-            bot::Status::Contesting(ans, _, (count, num), ..) => {
+            bot::Status::Contesting(ans, _, (count, num)) => {
                 msg.channel_id
                     .say(&ctx, format!("正解は \"{}\" でした...", ans))
                     .expect("fail to post");
-                let _ = *bot::CONTEST_REUSLT
-                    .lock()
-                    .unwrap()
-                    .entry("~giveup".to_string())
-                    .or_insert(0) += 1;
                 if let Ok(mut contest_result) = bot::CONTEST_REUSLT.lock() {
+                    *contest_result.entry("~giveup".to_string()).or_insert(0) += 1;
                     if &count == &num {
                         let mut v = Vec::from_iter(contest_result.iter());
                         v.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
@@ -194,15 +192,7 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
                         *contest_result = std::collections::BTreeMap::new();
                         *quiz_stat = bot::Status::StandingBy;
                     } else {
-                        let (ans, sorted, anagram, full_anagram) =
-                            executors::contest_continue(ctx, &msg, *count + 1, *num);
-                        *quiz_stat = bot::Status::Contesting(
-                            ans.clone(),
-                            sorted.clone(),
-                            (*count + 1, *num),
-                            anagram,
-                            full_anagram,
-                        );
+                        quiz_stat.contest_continue(ctx, &msg);
                     }
                 }
             }
@@ -248,25 +238,19 @@ pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
                         .lock()
                         .unwrap()
                         .select(&mut rand::thread_rng());
-                    let (ans, sorted) = dic.get(&mut rand::thread_rng()).unwrap();
+                    let ans = dic.get(&mut rand::thread_rng());
                     msg.channel_id
                         .say(
                             &ctx,
                             format!(
                                 "{number}問のコンテストを始めます。\n問 1 (1/{number})\nソートなぞなぞ ソート前の {symbol} な〜んだ？\n{prob}",
                                 number = num,
-                                prob = sorted,
+                                prob = ans.sorted(),
                                 symbol = lang.as_symbol(),
                             ),
                         )
                         .expect("fail to post");
-                    *quiz_guard = bot::Status::Contesting(
-                        ans.clone(),
-                        sorted.clone(),
-                        (1, num),
-                        dic.get_anagrams(&sorted),
-                        dic.get_full_anagrams(&sorted),
-                    );
+                    quiz_guard.contest_continue(ctx, msg);
                 }
             }
         }
