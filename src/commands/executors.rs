@@ -57,7 +57,7 @@ pub(crate) fn contest_continue(
     num: u32,
 ) -> (String, String, BTreeSet<String>, Option<BTreeSet<String>>) {
     let (dic, lang) = bot::CONTEST_LIBRARY
-        .read()
+        .lock()
         .unwrap()
         .select(&mut rand::thread_rng());
     let (ans, sorted) = dic.get(&mut rand::thread_rng()).unwrap();
@@ -207,11 +207,11 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                 if_chain! {
                     if finally;
                     let _ = *bot::CONTEST_REUSLT
-                        .write()
+                        .lock()
                         .unwrap()
                         .entry(msg.author.name.clone())
                         .or_insert(0) += 1;
-                    if let Ok(guard) = bot::CONTEST_REUSLT.read();
+                    if let Ok(guard) = bot::CONTEST_REUSLT.lock();
                     then {
                         if count >= num {
                             let mut v = Vec::from_iter(guard.iter());
@@ -232,7 +232,7 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                                     ),
                                 )
                                 .expect("fail to post");
-                            *bot::CONTEST_REUSLT.write().unwrap() = std::collections::BTreeMap::new();
+                            *bot::CONTEST_REUSLT.lock().unwrap() = std::collections::BTreeMap::new();
                             *quiz_guard = bot::Status::StandingBy;
                         } else {
                             let (ans, sorted, anagram, full_anagram) =

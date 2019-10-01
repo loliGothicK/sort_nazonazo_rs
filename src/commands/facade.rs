@@ -170,11 +170,11 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
                     .say(&ctx, format!("正解は \"{}\" でした...", ans))
                     .expect("fail to post");
                 let _ = *bot::CONTEST_REUSLT
-                    .write()
+                    .lock()
                     .unwrap()
                     .entry("~giveup".to_string())
                     .or_insert(0) += 1;
-                if let Ok(mut contest_result) = bot::CONTEST_REUSLT.write() {
+                if let Ok(mut contest_result) = bot::CONTEST_REUSLT.lock() {
                     if &count == &num {
                         let mut v = Vec::from_iter(contest_result.iter());
                         v.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
@@ -220,6 +220,7 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
 pub fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~giveup' by user '{}'", msg.author.name);
     if let Ok(mut guard) = bot::QUIZ.lock() {
+        println!("giveup is accepted");
         giveup_impl(ctx, msg, &mut *guard)?;
     }
     Ok(())
@@ -242,9 +243,9 @@ pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
                 Ok((num, mut languages)) => {
                     languages.sort();
                     languages.dedup();
-                    CONTEST_LIBRARY.write().unwrap().set(languages);
+                    CONTEST_LIBRARY.lock().unwrap().set(languages);
                     let (dic, lang) = CONTEST_LIBRARY
-                        .write()
+                        .lock()
                         .unwrap()
                         .select(&mut rand::thread_rng());
                     let (ans, sorted) = dic.get(&mut rand::thread_rng()).unwrap();
@@ -277,13 +278,13 @@ pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
 pub fn unrated(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~unrated' by user '{}'", msg.author.name);
     loop {
-        if let Ok(mut guard) = bot::QUIZ.lock() {
-            if guard.is_contesting() {
+        if let (Ok(mut quiz), Ok(mut result)) = (bot::QUIZ.lock(), bot::CONTEST_REUSLT.lock()) {
+            if quiz.is_contesting() {
                 msg.channel_id
                     .say(&ctx, "コンテストを中止します。")
                     .expect("fail to post");
-                *guard = bot::Status::StandingBy;
-                *bot::CONTEST_REUSLT.write().unwrap() = std::collections::BTreeMap::new();
+                *quiz = bot::Status::StandingBy;
+                *result = std::collections::BTreeMap::new();
             } else {
                 msg.channel_id
                     .say(&ctx, "現在コンテストは開催されていません。")

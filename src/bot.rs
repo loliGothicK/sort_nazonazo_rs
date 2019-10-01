@@ -142,7 +142,6 @@ impl DictionarySelector {
 
 lazy_static! {
     pub static ref QUIZ: Arc<Mutex<Status>> = Arc::new(Mutex::new(Status::StandingBy));
-    pub static ref CONTEST_REUSLT: RwLock<BTreeMap<String, u32>> = RwLock::new(BTreeMap::new());
-    pub static ref CONTEST_LIBRARY: RwLock<DictionarySelector> =
-        RwLock::new(DictionarySelector::new());
+    pub static ref CONTEST_REUSLT: Arc<Mutex<BTreeMap<String, u32>>> = Arc::new(Mutex::new(BTreeMap::new()));
+    pub static ref CONTEST_LIBRARY: Arc<Mutex<DictionarySelector>> = Arc::new(Mutex::new(DictionarySelector::new()));
 }
