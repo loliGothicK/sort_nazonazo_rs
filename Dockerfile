@@ -11,6 +11,7 @@ RUN apt-get upgrade -y && apt update \
     && cargo build --release --target=x86_64-unknown-linux-musl
 
 FROM rust:alpine
+
 RUN apk update && apk add ca-certificates openssl && rm -rf /var/cache/apk/*
 COPY --from=build-env /sort_nazonazo_rs/target/x86_64-unknown-linux-musl/release/mitama-test-bot /usr/local/bin/mitama-test-bot
 COPY --from=build-env /sort_nazonazo_rs/dictionaries/* /usr/dictionaries/

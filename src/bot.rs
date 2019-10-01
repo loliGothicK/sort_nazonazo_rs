@@ -73,6 +73,7 @@ pub fn select_dictionary_from_str<S: Into<String>>(lang: S) -> &'static Dictiona
     }
 }
 
+#[derive(Debug)]
 pub enum Status {
     StandingBy,
     Holding(String, Lang),
@@ -123,7 +124,7 @@ impl Status {
     pub fn is_correct_answer(&self, got: &String) -> bool {
         match self {
             Status::StandingBy => false,
-            Status::Contesting(ans, ..) | Status::Holding(ans, ..) => ans == got.to_lowercase(),
+            Status::Contesting(ans, ..) | Status::Holding(ans, ..) => ans == &got.to_lowercase(),
         }
     }
 
@@ -152,15 +153,15 @@ impl Status {
 
     pub fn is_contest_end(&self) -> bool {
         match self {
+            Status::Contesting(_, _, (count, num)) => *count == *num,
             _ => false,
-            Status::Contesting(_, _, (count, num)) => count == num,
         }
     }
 
     pub fn get_contest_num(&self) -> Option<(&u32, &u32)> {
         match self {
-            _ => None,
             Status::Contesting(_, _, (count, num)) => Some((count, num)),
+            _ => None,
         }
     }
 
@@ -178,7 +179,7 @@ impl Status {
                 format!(
                     "問 {current} ({current}/{number})\nソートなぞなぞ ソート前の {symbol} な〜んだ？\n{prob}",
                     number = num,
-                    current = count,
+                    current = *count + 1,
                     prob = sorted,
                     symbol = lang.as_symbol(),
                 ),

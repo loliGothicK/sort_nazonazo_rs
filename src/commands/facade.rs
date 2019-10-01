@@ -160,46 +160,41 @@ pub fn ru(ctx: &mut Context, msg: &Message) -> CommandResult {
 
 fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) -> CommandResult {
     if !msg.author.bot {
-        match quiz_stat {
-            bot::Status::Holding(ans, ..) => {
+        if quiz_stat.is_standing_by() {
+            msg.channel_id
+                .say(&ctx, "現在問題は出ていません。")
+                .expect("fail to post");
+        } else if quiz_stat.is_holding() {
+            msg.channel_id
+                .say(&ctx, format!("正解は \"{}\" でした...", quiz_stat.ans().unwrap()))
+                .expect("fail to post");
+            *quiz_stat = bot::Status::StandingBy;
+        } else {
+            let contest_result = &mut *bot::CONTEST_REUSLT.lock().unwrap();
+            *contest_result.entry("~giveup".to_string()).or_insert(0) += 1;
+            if !quiz_stat.is_contest_end() {
                 msg.channel_id
-                    .say(&ctx, format!("正解は \"{}\" でした...", ans))
+                    .say(&ctx, format!("正解は \"{}\" でした...", quiz_stat.ans().unwrap()))
                     .expect("fail to post");
+                quiz_stat.contest_continue(ctx, &msg);
+            } else {
+                let (_, num) = quiz_stat.get_contest_num().unwrap();
+                msg.channel_id
+                    .say(
+                        &ctx,
+                        format!(
+                            "正解は \"{ans}\" でした...\n{num}問連続のコンテストが終了しました。\n{result}",
+                            ans = quiz_stat.ans().unwrap(),
+                            num = num,
+                            result = contest_result
+                                .into_iter()
+                                .map(|tuple| format!("{} AC: {}\n", tuple.1, tuple.0))
+                                .collect::<String>()
+                        ),
+                    )
+                    .expect("fail to post");
+                *contest_result = std::collections::BTreeMap::new();
                 *quiz_stat = bot::Status::StandingBy;
-            }
-            bot::Status::Contesting(ans, _, (count, num)) => {
-                msg.channel_id
-                    .say(&ctx, format!("正解は \"{}\" でした...", ans))
-                    .expect("fail to post");
-                if let Ok(mut contest_result) = bot::CONTEST_REUSLT.lock() {
-                    *contest_result.entry("~giveup".to_string()).or_insert(0) += 1;
-                    if &count == &num {
-                        let mut v = Vec::from_iter(contest_result.iter());
-                        v.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
-                        msg.channel_id
-                            .say(
-                                &ctx,
-                                format!(
-                                    "{num}問連続のコンテストが終了しました。\n{result}",
-                                    num = num,
-                                    result = v
-                                        .into_iter()
-                                        .map(|tuple| format!("{} AC: {}\n", tuple.1, tuple.0))
-                                        .collect::<String>()
-                                ),
-                            )
-                            .expect("fail to post");
-                        *contest_result = std::collections::BTreeMap::new();
-                        *quiz_stat = bot::Status::StandingBy;
-                    } else {
-                        quiz_stat.contest_continue(ctx, &msg);
-                    }
-                }
-            }
-            bot::Status::StandingBy => {
-                msg.channel_id
-                    .say(&ctx, "現在問題は出ていません。")
-                    .expect("fail to post");
             }
         }
     }
@@ -250,7 +245,7 @@ pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
                             ),
                         )
                         .expect("fail to post");
-                    quiz_guard.contest_continue(ctx, msg);
+                    *quiz_guard = bot::Status::Contesting(ans.to_string(), lang, (1, num));
                 }
             }
         }
