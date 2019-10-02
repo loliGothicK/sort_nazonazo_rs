@@ -1,10 +1,8 @@
 use super::dictionary::*;
 use indexmap::IndexSet;
 use rand::distributions::{Distribution, Uniform};
-use std::collections::{BTreeMap, BTreeSet};
-use std::sync::RwLock;
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
-use itertools::Itertools;
 use super::sort::Sorted;
 use serenity::client::Context;
 use serenity::model::channel::Message;

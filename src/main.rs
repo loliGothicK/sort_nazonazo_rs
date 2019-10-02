@@ -1,4 +1,5 @@
 //#![feature(async_await)]
+#![feature(result_map_or_else)]
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
@@ -17,11 +18,8 @@ extern crate unicode_segmentation;
 use regex::Regex;
 use serenity::{
     client::Client,
-    framework::standard::{
-        macros::{command, group},
-        Args, CommandResult, StandardFramework,
-    },
-    model::{channel::Message, gateway::Ready},
+    framework::standard::StandardFramework,
+    model::gateway::Ready,
     prelude::*,
 };
 use std::env;
@@ -30,10 +28,10 @@ pub mod bot;
 pub mod commands;
 pub mod dictionary;
 pub mod sort;
+pub mod settings;
 use sort::Sorted;
 
 use commands::{executors, facade};
-use itertools::Itertools;
 
 struct Handler;
 

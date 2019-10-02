@@ -1,21 +1,17 @@
 use regex::Regex;
 use serenity::{
-    client::Client,
     framework::standard::{
         macros::{command, group},
-        Args, CommandResult, Delimiter, StandardFramework,
+        Args, CommandResult,
     },
-    model::{channel::Message, gateway::Ready},
+    model::channel::Message,
     prelude::*,
 };
 
 use std::env;
-use std::io::Write;
-use std::iter::FromIterator;
 use unicode_segmentation::UnicodeSegmentation;
 use super::super::bot;
 use super::{executors, parser};
-use itertools::Itertools;
 use super::super::sort::Sorted;
 
 macro_rules! count {

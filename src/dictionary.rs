@@ -1,5 +1,4 @@
 use indexmap::IndexSet;
-use itertools::Itertools;
 use rand::distributions::{Distribution, Uniform};
 use serde_derive::{Deserialize, Serialize};
 use std::fs::File;
