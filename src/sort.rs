@@ -7,6 +7,8 @@ pub trait Sorted {
 
 impl Sorted for String {
     fn sorted(&self) -> Self {
-        UnicodeSegmentation::graphemes(self.as_str(), true).sorted().collect::<String>()
+        UnicodeSegmentation::graphemes(self.as_str(), true)
+            .sorted()
+            .collect::<String>()
     }
 }

@@ -1,24 +1,16 @@
-use serenity::{
-    model::channel::Message,
-    prelude::*,
-};
+use serenity::{model::channel::Message, prelude::*};
 
+use itertools::Itertools;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::str::from_utf8;
-use itertools::Itertools;
 
 use super::super::bot;
 use super::super::dictionary;
 use super::super::sort::Sorted;
 
-pub(crate) fn prob(
-    ctx: &mut Context,
-    msg: &Message,
-    lang: bot::Lang,
-) -> String {
-    println!("called prob");
+pub(crate) fn prob(ctx: &mut Context, msg: &Message, lang: bot::Lang) -> String {
     let dic = match lang {
         bot::Lang::En => &*dictionary::ENGLISH,
         bot::Lang::Ja => &*dictionary::JAPANESE,
@@ -39,6 +31,7 @@ pub(crate) fn prob(
             ),
         )
         .expect("fail to post");
+    println!("called prob: [{}, {}]", ans, sorted);
     ans.clone()
 }
 
@@ -80,29 +73,27 @@ fn main() {{
 pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
     if let Ok(mut quiz_guard) = bot::QUIZ.lock() {
         match quiz_guard.answer_check(&msg.content) {
-            bot::CheckResult::WA => { // includes the case that bot is standing by.
+            bot::CheckResult::WA => {
+                // includes the case that bot is standing by.
                 return;
-            },
-            bot::CheckResult::Assumed(ans) => {
+            }
+            bot::CheckResult::Assumed(_ans) => {
                 msg.channel_id
                     .say(
                         &ctx,
                         format!(
                             "{} さん、正解です！\n正解は\"{}\"でした！",
-                            &msg.author.name, &ans
+                            &msg.author.name, quiz_guard.ans().unwrap()
                         ),
                     )
                     .expect("fail to post");
                 if quiz_guard.is_holding() {
                     *quiz_guard = bot::Status::StandingBy;
                     return;
-                }
-                else if quiz_guard.is_contesting() {
+                } else if quiz_guard.is_contesting() {
                     let contest_result = &mut *bot::CONTEST_REUSLT.lock().unwrap();
 
-                    *contest_result
-                        .entry(msg.author.name.clone())
-                        .or_insert(0) += 1;
+                    *contest_result.entry(msg.author.name.clone()).or_insert(0) += 1;
 
                     let (_, num) = quiz_guard.get_contest_num().unwrap();
 
@@ -116,10 +107,7 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                                     result = contest_result
                                         .iter()
                                         .sorted_by(|&(_, a), &(_, b)| b.cmp(&a))
-                                        .map(|tuple| format!(
-                                            "{} AC: {}\n",
-                                            tuple.1, tuple.0
-                                        ))
+                                        .map(|tuple| format!("{} AC: {}\n", tuple.1, tuple.0))
                                         .collect::<String>()
                                 ),
                             )
@@ -130,27 +118,25 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                         quiz_guard.contest_continue(ctx, msg);
                     }
                 }
-            },
+            }
             bot::CheckResult::Anagram(ans) => {
                 msg.channel_id
                     .say(
                         &ctx,
                         format!(
                             "{} さん、{} は非想定解ですが正解です！",
-                            &msg.author.name,
-                            ans
+                            &msg.author.name, ans.to_lowercase()
                         ),
                     )
                     .expect("fail to post");
-            },
+            }
             bot::CheckResult::Full(ans) => {
                 msg.channel_id
                     .say(
                         &ctx,
                         format!(
                             "{} さん、{} は出題辞書に非想定解ですが正解です！",
-                            &msg.author.name,
-                            ans
+                            &msg.author.name, ans.to_lowercase()
                         ),
                     )
                     .expect("fail to post");
@@ -158,4 +144,3 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
         }
     }
 }
-

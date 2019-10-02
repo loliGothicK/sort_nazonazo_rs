@@ -8,11 +8,11 @@ use serenity::{
     prelude::*,
 };
 
+use super::super::bot;
+use super::super::sort::Sorted;
+use super::{executors, parser};
 use std::env;
 use unicode_segmentation::UnicodeSegmentation;
-use super::super::bot;
-use super::{executors, parser};
-use super::super::sort::Sorted;
 
 macro_rules! count {
     ( $x:ident ) => (1usize);
@@ -162,7 +162,10 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
                 .expect("fail to post");
         } else if quiz_stat.is_holding() {
             msg.channel_id
-                .say(&ctx, format!("正解は \"{}\" でした...", quiz_stat.ans().unwrap()))
+                .say(
+                    &ctx,
+                    format!("正解は \"{}\" でした...", quiz_stat.ans().unwrap()),
+                )
                 .expect("fail to post");
             *quiz_stat = bot::Status::StandingBy;
         } else {
@@ -170,7 +173,10 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
             *contest_result.entry("~giveup".to_string()).or_insert(0) += 1;
             if !quiz_stat.is_contest_end() {
                 msg.channel_id
-                    .say(&ctx, format!("正解は \"{}\" でした...", quiz_stat.ans().unwrap()))
+                    .say(
+                        &ctx,
+                        format!("正解は \"{}\" でした...", quiz_stat.ans().unwrap()),
+                    )
                     .expect("fail to post");
                 quiz_stat.contest_continue(ctx, &msg);
             } else {

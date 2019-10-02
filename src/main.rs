@@ -17,18 +17,15 @@ extern crate unicode_segmentation;
 
 use regex::Regex;
 use serenity::{
-    client::Client,
-    framework::standard::StandardFramework,
-    model::gateway::Ready,
-    prelude::*,
+    client::Client, framework::standard::StandardFramework, model::gateway::Ready, prelude::*,
 };
 use std::env;
 
 pub mod bot;
 pub mod commands;
 pub mod dictionary;
-pub mod sort;
 pub mod settings;
+pub mod sort;
 use sort::Sorted;
 
 use commands::{executors, facade};
@@ -62,7 +59,10 @@ fn main() {
                         }
                         bot::Status::Contesting(ref ans, ..) => {
                             msg.channel_id
-                                .say(&ctx, format!("現在コンテスト中です\n問題: {}",  ans.sorted()))
+                                .say(
+                                    &ctx,
+                                    format!("現在コンテスト中です\n問題: {}", ans.sorted()),
+                                )
                                 .expect("fail to post");
                             false
                         }
@@ -73,12 +73,14 @@ fn main() {
                 }
             })
             .normal_message(|ctx, msg| {
-                let re = Regex::new(r"^kick\(.*\);$").unwrap();
-                if re.is_match(&msg.content) {
-                    println!("{:?}", executors::kick(ctx, msg));
-                    return;
+                if !msg.author.bot {
+                    let re = Regex::new(r"^kick\(.*\);$").unwrap();
+                    if re.is_match(&msg.content) {
+                        println!("{:?}", executors::kick(ctx, msg));
+                        return;
+                    }
+                    executors::answer_check(ctx, msg);
                 }
-                executors::answer_check(ctx, msg);
             })
             .group(&commands::facade::QUIZ_GROUP)
             .group(&commands::facade::CONTEST_GROUP)

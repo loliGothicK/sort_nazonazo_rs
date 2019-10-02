@@ -1,11 +1,11 @@
 use super::dictionary::*;
+use super::sort::Sorted;
 use indexmap::IndexSet;
 use rand::distributions::{Distribution, Uniform};
-use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
-use super::sort::Sorted;
 use serenity::client::Context;
 use serenity::model::channel::Message;
+use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
 
 custom_derive! {
     #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, NextVariant, PrevVariant)]
@@ -122,21 +122,33 @@ impl Status {
     pub fn is_correct_answer(&self, got: &String) -> bool {
         match self {
             Status::StandingBy => false,
-            Status::Contesting(ans, ..) | Status::Holding(ans, ..) => ans == &got.to_lowercase(),
+            Status::Contesting(ans, ..) | Status::Holding(ans, ..) => dbg!(ans == &got.to_lowercase()),
         }
     }
 
     pub fn is_anagram(&self, got: &String) -> bool {
         match self {
             Status::StandingBy => false,
-            _ => self.ans().unwrap().sorted() == got.to_lowercase().sorted() && self.get_dictionary().unwrap().contains(got)
+            Status::Contesting(ans, ..) | Status::Holding(ans, ..) => {
+                dbg!(ans.sorted()) == dbg!(got.to_lowercase().sorted())
+                    && dbg!(self
+                        .get_dictionary()
+                        .unwrap()
+                        .contains(&dbg!(got.to_lowercase())))
+            }
         }
     }
 
     pub fn is_anagram_by_full(&self, got: &String) -> bool {
         match self {
             Status::StandingBy => false,
-            _ => self.ans().unwrap().sorted() == got.to_lowercase().sorted() && self.get_dictionary().unwrap().contains_ex(got)
+            _ => {
+                self.ans().unwrap().sorted() == got.to_lowercase().sorted()
+                    && self
+                        .get_dictionary()
+                        .unwrap()
+                        .contains_ex(&got.to_lowercase())
+            }
         }
     }
 
@@ -170,6 +182,7 @@ impl Status {
             .select(&mut rand::thread_rng());
         let ans = dic.get(&mut rand::thread_rng());
         let sorted = ans.sorted();
+        println!("called contest_continue: [{}, {}]", ans, sorted);
         let (count, num) = self.get_contest_num().unwrap();
         msg.channel_id
             .say(
@@ -220,6 +233,8 @@ impl DictionarySelector {
 
 lazy_static! {
     pub static ref QUIZ: Arc<Mutex<Status>> = Arc::new(Mutex::new(Status::StandingBy));
-    pub static ref CONTEST_REUSLT: Arc<Mutex<BTreeMap<String, u32>>> = Arc::new(Mutex::new(BTreeMap::new()));
-    pub static ref CONTEST_LIBRARY: Arc<Mutex<DictionarySelector>> = Arc::new(Mutex::new(DictionarySelector::new()));
+    pub static ref CONTEST_REUSLT: Arc<Mutex<BTreeMap<String, u32>>> =
+        Arc::new(Mutex::new(BTreeMap::new()));
+    pub static ref CONTEST_LIBRARY: Arc<Mutex<DictionarySelector>> =
+        Arc::new(Mutex::new(DictionarySelector::new()));
 }

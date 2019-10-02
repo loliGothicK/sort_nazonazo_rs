@@ -36,7 +36,10 @@ impl Dictionary {
     }
 
     pub fn contains_ex(&self, word: &String) -> bool {
-        self.full.as_ref().map(|x|x.contains(word)).unwrap_or(false)
+        self.full
+            .as_ref()
+            .map(|x| x.contains(word))
+            .unwrap_or(false)
     }
 
     pub fn from_toml<S: AsRef<Path>>(file: S) -> std::io::Result<Dictionary> {
@@ -65,7 +68,7 @@ impl Dictionary {
         Ok(Dictionary {
             questions,
             full,
-            dist
+            dist,
         })
     }
 }
