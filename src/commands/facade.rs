@@ -9,6 +9,7 @@ use serenity::{
 };
 
 use super::super::bot;
+use super::super::settings;
 use super::super::sort::Sorted;
 use super::{executors, parser};
 use std::env;
@@ -70,6 +71,12 @@ group!({
     name: "help",
     options: {},
     commands: [help],
+});
+
+group!({
+    name: "settings",
+    options: {},
+    commands: [enable, disable],
 });
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -398,5 +405,25 @@ USEGE [EXTRA]:
             )
             .expect("fail to post");
     }
+    Ok(())
+}
+
+#[command]
+pub fn enable(ctx: &mut Context, msg: &Message) -> CommandResult {
+    println!("Got command '~enable' by user '{}'", msg.author.name);
+    settings::SETTINGS.lock().unwrap().channel.enabled.push(*msg.channel_id.as_u64());
+    msg.channel_id
+        .say(&ctx, "このチャンネルでソートなぞなぞが有効になりました。")
+        .expect("fail to post");
+    Ok(())
+}
+
+#[command]
+pub fn disable(ctx: &mut Context, msg: &Message) -> CommandResult {
+    println!("Got command '~disable' by user '{}'", msg.author.name);
+    settings::SETTINGS.lock().unwrap().channel.enabled.retain(|id| *id != *msg.channel_id.as_u64());
+    msg.channel_id
+        .say(&ctx, "このチャンネルでソートなぞなぞが無効になりました。")
+        .expect("fail to post");
     Ok(())
 }

@@ -34,6 +34,9 @@ struct Handler;
 
 impl EventHandler for Handler {
     fn ready(&self, _: Context, ready: Ready) {
+        for id in &settings::SETTINGS.lock().unwrap().channel.enabled {
+            println!("{} is enabled!", id);
+        }
         println!("{} is connected!", ready.user.name);
     }
 }
@@ -46,6 +49,13 @@ fn main() {
         StandardFramework::new()
             .configure(|c| c.prefix("~")) // set the bot's prefix to "~"
             .before(|ctx, msg, command_name| {
+                let re = Regex::new(r"^enable$").unwrap();
+                if re.is_match(command_name) {
+                    return true;
+                }
+                if !dbg!(&settings::SETTINGS.lock().unwrap().channel.enabled).contains(msg.channel_id.as_u64()) {
+                    return false;
+                }
                 if facade::QUIZ_COMMANDS_REGEX.is_match(&command_name.to_string()) {
                     match &*bot::QUIZ.lock().unwrap() {
                         bot::Status::Holding(ref ans, ..) => {
@@ -85,6 +95,7 @@ fn main() {
             .group(&commands::facade::QUIZ_GROUP)
             .group(&commands::facade::CONTEST_GROUP)
             .group(&commands::facade::HELP_GROUP)
+            .group(&commands::facade::SETTINGS_GROUP)
             .group(&commands::facade::EXTRA_GROUP),
     );
 
