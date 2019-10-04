@@ -31,13 +31,16 @@ pub mod sort;
 use sort::Sorted;
 
 use commands::{executors, facade};
+use serenity::model::id::ChannelId;
 
 struct Handler;
 
 impl EventHandler for Handler {
-    fn ready(&self, _: Context, ready: Ready) {
+    fn ready(&self, ctx: Context, ready: Ready) {
         for id in &settings::SETTINGS.lock().unwrap().channel.enabled {
-            println!("{} is enabled!", id);
+            ChannelId::from(*id)
+                .say(&ctx, "おはようございます。 botの起動をおしらせします！")
+                .expect("fail to send");
         }
         println!("{} is connected!", ready.user.name);
     }

@@ -416,13 +416,12 @@ fn sync_setting() -> Result<(), BotError> {
     use quick_error::ResultExt;
     let path = std::path::Path::new("/tmp/settings/settings.toml");
     let mut conf = File::create(&path).context(path)?;
-    conf
-        .write_all(
-            toml::to_string(&*settings::SETTINGS.lock().unwrap())
-                .context("/tmp/settings/settings.toml")?
-                .as_bytes(),
-        )
-        .context(path)?;
+    conf.write_all(
+        toml::to_string(&*settings::SETTINGS.lock().unwrap())
+            .context("/tmp/settings/settings.toml")?
+            .as_bytes(),
+    )
+    .context(path)?;
     conf.sync_all().context(path)?;
     Ok(())
 }
