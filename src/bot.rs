@@ -122,7 +122,9 @@ impl Status {
     pub fn is_correct_answer(&self, got: &String) -> bool {
         match self {
             Status::StandingBy => false,
-            Status::Contesting(ans, ..) | Status::Holding(ans, ..) => dbg!(ans == &got.to_lowercase()),
+            Status::Contesting(ans, ..) | Status::Holding(ans, ..) => {
+                dbg!(ans == &got.to_lowercase())
+            }
         }
     }
 

@@ -12,7 +12,8 @@ extern crate clap;
 extern crate regex;
 extern crate toml;
 extern crate unicode_segmentation;
-
+#[macro_use]
+extern crate quick_error;
 //extern crate nazonazo_macros;
 
 use regex::Regex;
@@ -24,6 +25,7 @@ use std::env;
 pub mod bot;
 pub mod commands;
 pub mod dictionary;
+pub mod error;
 pub mod settings;
 pub mod sort;
 use sort::Sorted;
@@ -53,7 +55,9 @@ fn main() {
                 if re.is_match(command_name) {
                     return true;
                 }
-                if !dbg!(&settings::SETTINGS.lock().unwrap().channel.enabled).contains(msg.channel_id.as_u64()) {
+                if !dbg!(&settings::SETTINGS.lock().unwrap().channel.enabled)
+                    .contains(msg.channel_id.as_u64())
+                {
                     return false;
                 }
                 if facade::QUIZ_COMMANDS_REGEX.is_match(&command_name.to_string()) {

@@ -83,7 +83,8 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                         &ctx,
                         format!(
                             "{} さん、正解です！\n正解は\"{}\"でした！",
-                            &msg.author.name, quiz_guard.ans().unwrap()
+                            &msg.author.name,
+                            quiz_guard.ans().unwrap()
                         ),
                     )
                     .expect("fail to post");
@@ -125,7 +126,8 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                         &ctx,
                         format!(
                             "{} さん、{} は非想定解ですが正解です！",
-                            &msg.author.name, ans.to_lowercase()
+                            &msg.author.name,
+                            ans.to_lowercase()
                         ),
                     )
                     .expect("fail to post");
@@ -136,7 +138,8 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                         &ctx,
                         format!(
                             "{} さん、{} は出題辞書に非想定解ですが正解です！",
-                            &msg.author.name, ans.to_lowercase()
+                            &msg.author.name,
+                            ans.to_lowercase()
                         ),
                     )
                     .expect("fail to post");

@@ -9,10 +9,14 @@ use serenity::{
 };
 
 use super::super::bot;
+use super::super::error::BotError;
 use super::super::settings;
 use super::super::sort::Sorted;
 use super::{executors, parser};
+use quick_error::ResultExt;
 use std::env;
+use std::fs::File;
+use std::io::Write;
 use unicode_segmentation::UnicodeSegmentation;
 
 macro_rules! count {
@@ -408,22 +412,47 @@ USEGE [EXTRA]:
     Ok(())
 }
 
+fn sync_setting() -> Result<(), BotError> {
+    use quick_error::ResultExt;
+    let path = std::path::Path::new("/tmp/settings/settings.toml");
+    let mut conf = File::create(&path).context(path)?;
+    conf
+        .write_all(
+            toml::to_string(&*settings::SETTINGS.lock().unwrap())
+                .context("/tmp/settings/settings.toml")?
+                .as_bytes(),
+        )
+        .context(path)?;
+    conf.sync_all().context(path)?;
+    Ok(())
+}
+
 #[command]
 pub fn enable(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~enable' by user '{}'", msg.author.name);
-    settings::SETTINGS.lock().unwrap().channel.enabled.push(*msg.channel_id.as_u64());
+    settings::SETTINGS
+        .lock()
+        .unwrap()
+        .channel
+        .enabled
+        .push(*msg.channel_id.as_u64());
     msg.channel_id
         .say(&ctx, "このチャンネルでソートなぞなぞが有効になりました。")
         .expect("fail to post");
-    Ok(())
+    Ok(sync_setting()?)
 }
 
 #[command]
 pub fn disable(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~disable' by user '{}'", msg.author.name);
-    settings::SETTINGS.lock().unwrap().channel.enabled.retain(|id| *id != *msg.channel_id.as_u64());
+    settings::SETTINGS
+        .lock()
+        .unwrap()
+        .channel
+        .enabled
+        .retain(|id| *id != *msg.channel_id.as_u64());
     msg.channel_id
         .say(&ctx, "このチャンネルでソートなぞなぞが無効になりました。")
         .expect("fail to post");
-    Ok(())
+    Ok(sync_setting()?)
 }

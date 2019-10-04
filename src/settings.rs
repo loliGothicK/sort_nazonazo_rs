@@ -4,8 +4,8 @@ use serde_derive::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
-use toml;
 use std::sync::{Arc, Mutex};
+use toml;
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub(crate) struct Config {
@@ -13,7 +13,9 @@ pub(crate) struct Config {
 }
 
 lazy_static! {
-    pub(crate) static ref SETTINGS: Arc<Mutex<Config>> = Arc::new(Mutex::new(init_config("/tmp/settings/settings.toml").unwrap()));
+    pub(crate) static ref SETTINGS: Arc<Mutex<Config>> = Arc::new(Mutex::new(
+        init_config("/tmp/settings/settings.toml").unwrap()
+    ));
 }
 
 pub(crate) fn init_config<ConfigPath: AsRef<Path>>(path: ConfigPath) -> std::io::Result<Config> {
