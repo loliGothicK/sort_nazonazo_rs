@@ -78,20 +78,31 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                 return;
             }
             bot::CheckResult::Assumed(_ans) => {
-                msg.channel_id
-                    .say(
-                        &ctx,
-                        format!(
-                            "{} さん、正解です！\n正解は\"{}\"でした！",
-                            &msg.author.name,
-                            quiz_guard.ans().unwrap()
-                        ),
-                    )
-                    .expect("fail to post");
                 if quiz_guard.is_holding() {
+                    msg.channel_id
+                        .say(
+                            &ctx,
+                            format!(
+                                "{} さん、正解です！\n正解は\"{}\"でした！ [{:.3} sec]",
+                                &msg.author.name,
+                                quiz_guard.ans().unwrap(),
+                                quiz_guard.elapsed().unwrap(),
+                            ),
+                        )
+                        .expect("fail to post");
                     *quiz_guard = bot::Status::StandingBy;
                     return;
                 } else if quiz_guard.is_contesting() {
+                    msg.channel_id
+                        .say(
+                            &ctx,
+                            format!(
+                                "{} さん、正解です！\n正解は\"{}\"でした！",
+                                &msg.author.name,
+                                quiz_guard.ans().unwrap()
+                            ),
+                        )
+                        .expect("fail to post");
                     let contest_result = &mut *bot::CONTEST_REUSLT.lock().unwrap();
 
                     *contest_result.entry(msg.author.name.clone()).or_insert(0) += 1;

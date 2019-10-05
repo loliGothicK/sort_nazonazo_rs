@@ -6,7 +6,7 @@ use serenity::client::Context;
 use serenity::model::channel::Message;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
-
+use std::time::Instant;
 custom_derive! {
     #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, NextVariant, PrevVariant)]
     pub enum Lang {
@@ -74,7 +74,7 @@ pub fn select_dictionary_from_str<S: Into<String>>(lang: S) -> &'static Dictiona
 #[derive(Debug)]
 pub enum Status {
     StandingBy,
-    Holding(String, Lang),
+    Holding(String, Lang, Instant),
     Contesting(String, Lang, (u32, u32)),
 }
 
@@ -115,7 +115,9 @@ impl Status {
     pub fn get_dictionary(&self) -> Result<&Dictionary, ()> {
         match self {
             Status::StandingBy => Err(()),
-            Status::Contesting(_, lang, ..) | Status::Holding(_, lang) => Ok(get_dictionary(*lang)),
+            Status::Contesting(_, lang, ..) | Status::Holding(_, lang, ..) => {
+                Ok(get_dictionary(*lang))
+            }
         }
     }
 
@@ -199,6 +201,13 @@ impl Status {
             )
             .expect("fail to post");
         *self = Status::Contesting(ans.to_string(), lang, (*count + 1, *num));
+    }
+
+    pub fn elapsed(&self) -> Option<f32> {
+        match self {
+            Status::Holding(_, _, instant) => Some(instant.elapsed().as_secs_f32()),
+            _ => None,
+        }
     }
 }
 
