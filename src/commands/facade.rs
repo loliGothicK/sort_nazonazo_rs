@@ -391,11 +391,11 @@ USAGE [QUIZ]:
     ~giveup:
     => 一問を諦めて答えを見ることができます（出題状態はキャンセルされます）。
 
-    ~hint {{NUM>=answer length}}:
+    ~hint {{NUM>=answer length}} [Optioin: --random]:
     => 答えの最初のNUM文字をヒントとして見ることができます。
 
 USAGE [CONTEST]:
-    ~contest {{LANG}} {{NUM<=100}}: LANG=[en|ja|fr|de|it]
+    ~contest {{NUM<=100}} {{LANGUAGES}}...
     => 言語オンリー連続出題を行います
 
     ~unrated:
