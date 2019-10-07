@@ -42,7 +42,6 @@ questions = [
     "aŭtuno",
     "avo",
     "azeno",
-
     "bani",
     "baro",
     "bati",
@@ -76,14 +75,12 @@ questions = [
     "buŝo",
     "butero",
     "butono",
-
     "celo",
     "centro",
     "certa",
     "cetera",
     "cigaredo",
     "cirklo",
-
     "ĉambro",
     "ĉapelo",
     "ĉefo",
@@ -91,7 +88,6 @@ questions = [
     "ĉesi",
     "ĉevalo",
     "ĉielo",
-
     "danci",
     "danĝero",
     "danki",
@@ -128,7 +124,6 @@ questions = [
     "drato",
     "dubi",
     "dungi",
-
     "ebena",
     "eduki",
     "edzo",
@@ -152,7 +147,6 @@ questions = [
     "esti",
     "estimi",
     "evolui",
-
     "facila",
     "fadeno",
     "fajro",
@@ -205,7 +199,6 @@ questions = [
     "fumo",
     "funkcio",
     "fuŝi",
-
     "gaja",
     "gajni",
     "gaso",
@@ -223,7 +216,6 @@ questions = [
     "grupo",
     "gusto",
     "gvidi",
-
     "ĝardeno",
     "ĝeni",
     "ĝenerala",
@@ -231,7 +223,6 @@ questions = [
     "ĝoji",
     "ĝui",
     "ĝusta",
-
     "halti",
     "haro",
     "haŭto",
@@ -247,9 +238,7 @@ questions = [
     "horloĝo",
     "hotelo",
     "hundo",
-
     "ĥoro",
-
     "ideo",
     "idealo",
     "imagi",
@@ -267,15 +256,12 @@ questions = [
     "interna",
     "inviti",
     "iri",
-
     "jaro",
     "juĝi",
     "juna",
     "jupo",
     "justa",
-
     "ĵeti",
-
     "kadro",
     "kafo",
     "kajero",
@@ -372,7 +358,6 @@ questions = [
     "kvadrato",
     "kvalito",
     "kvanto",
-
     "labori",
     "laca",
     "lago",
@@ -409,7 +394,6 @@ questions = [
     "ludi",
     "lumo",
     "luno",
-
     "mano",
     "manĝi",
     "maniero",
@@ -456,7 +440,6 @@ questions = [
     "muŝo",
     "muzeo",
     "muziko",
-
     "nacio",
     "naĝi",
     "naski",
@@ -480,7 +463,6 @@ questions = [
     "nova",
     "nubo",
     "numero",
-
     "obei",
     "objekto",
     "odori",
@@ -504,7 +486,6 @@ questions = [
     "originalo",
     "osto",
     "ovo",
-
     "paco",
     "pagi",
     "paĝo",
@@ -603,7 +584,6 @@ questions = [
     "pupo",
     "pura",
     "puŝi",
-
     "rado",
     "radio",
     "rajto",
@@ -646,7 +626,6 @@ questions = [
     "rubriko",
     "ruĝa",
     "ruli",
-
     "saĝa",
     "sako",
     "salo",
@@ -720,7 +699,6 @@ questions = [
     "suno",
     "supozi",
     "supro",
-
     "ŝafo",
     "ŝajni",
     "ŝanco",
@@ -739,7 +717,6 @@ questions = [
     "ŝtrumpo",
     "ŝtupo",
     "ŝuo",
-
     "tablo",
     "tabulo",
     "tago",
@@ -777,16 +754,13 @@ questions = [
     "turni",
     "tuŝi",
     "tuta",
-
     "ŭato",
     "vato",
-
     "universala",
     "universitato",
     "urbo",
     "utila",
     "uzi",
-
     "vagono",
     "valida",
     "valoro",
@@ -825,6 +799,5 @@ questions = [
     "volvi",
     "vorto",
     "vosto",
-
     "zorgi"
 ]
