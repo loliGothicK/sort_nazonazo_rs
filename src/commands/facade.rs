@@ -46,7 +46,7 @@ macro_rules! quiz_commands {
     };
 }
 
-quiz_commands!(en, ja, fr, de, it, ru);
+quiz_commands!(en, ja, fr, de, it, ru, eo);
 /*
 quiz_commands! {
     en: {
@@ -164,6 +164,19 @@ pub fn ru(ctx: &mut Context, msg: &Message) -> CommandResult {
         then {
             let ans = executors::prob(ctx, &msg, bot::Lang::Ru);
             *guard = bot::Status::Holding(ans.clone(), bot::Lang::Ru, Instant::now());
+        }
+    }
+    Ok(())
+}
+#[command]
+pub fn eo(ctx: &mut Context, msg: &Message) -> CommandResult {
+    println!("Got command '~ru' by user '{}'", msg.author.name);
+    if_chain! {
+        if !msg.author.bot;
+        if let Ok(mut guard) = bot::QUIZ.lock();
+        then {
+            let ans = executors::prob(ctx, &msg, bot::Lang::Eo);
+            *guard = bot::Status::Holding(ans.clone(), bot::Lang::Eo, Instant::now());
         }
     }
     Ok(())

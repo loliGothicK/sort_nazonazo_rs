@@ -104,4 +104,9 @@ lazy_static! {
         println!("RUSSIAN is loaded: len = {}", dictionary.questions.len());
         dictionary
     };
+    pub static ref ESPERANTO: Dictionary = {
+        let dictionary: Dictionary = Dictionary::from_toml("esperanto.toml").unwrap();
+        println!("ESPERANTO is loaded: len = {}", dictionary.questions.len());
+        dictionary
+    };
 }

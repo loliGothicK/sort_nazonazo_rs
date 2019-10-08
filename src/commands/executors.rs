@@ -19,6 +19,7 @@ pub(crate) fn prob(ctx: &mut Context, msg: &Message, lang: bot::Lang) -> String 
         bot::Lang::De => &*dictionary::GERMAN,
         bot::Lang::It => &*dictionary::ITALIAN,
         bot::Lang::Ru => &*dictionary::RUSSIAN,
+        bot::Lang::Eo => &*dictionary::ESPERANTO,
     };
     let ans = dic.get(&mut rand::thread_rng());
     let sorted = ans.sorted();
