@@ -16,9 +16,12 @@ use super::super::sort::Sorted;
 use super::{executors, parser};
 use quick_error::ResultExt;
 use std::env;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::Write;
 use unicode_segmentation::UnicodeSegmentation;
+use crate::bot::ContestData;
+use itertools::Itertools;
+use indexmap::IndexMap;
 
 macro_rules! count {
     ( $x:ident ) => (1usize);
@@ -182,7 +185,7 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
             *quiz_stat = bot::Status::StandingBy;
         } else {
             let contest_result = &mut *bot::CONTEST_REUSLT.lock().unwrap();
-            *contest_result.entry("~giveup".to_string()).or_insert(0) += 1;
+            *contest_result.entry(msg.author.name.clone()).or_insert(ContestData::default()) += (1, quiz_stat.elapsed().unwrap());
             if !quiz_stat.is_contest_end() {
                 msg.channel_id
                     .say(
@@ -201,13 +204,14 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
                             ans = quiz_stat.ans().unwrap(),
                             num = num,
                             result = contest_result
-                                .into_iter()
-                                .map(|tuple| format!("{} AC: {}\n", tuple.1, tuple.0))
+                                .iter()
+                                .sorted_by_key(|(_, data)| data.ac)
+                                .map(|(name, data)| format!("{}, {}\n", name, data.as_string()))
                                 .collect::<String>()
                         ),
                     )
                     .expect("fail to post");
-                *contest_result = std::collections::BTreeMap::new();
+                *contest_result = IndexMap::new();
                 *quiz_stat = bot::Status::StandingBy;
             }
         }
@@ -259,7 +263,7 @@ pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
                             ),
                         )
                         .expect("fail to post");
-                    *quiz_guard = bot::Status::Contesting(ans.to_string(), lang, (1, num));
+                    *quiz_guard = bot::Status::Contesting(ans.to_string(), lang, (1, num), Instant::now());
                 }
             }
         }
@@ -277,7 +281,7 @@ pub fn unrated(ctx: &mut Context, msg: &Message) -> CommandResult {
                     .say(&ctx, "コンテストを中止します。")
                     .expect("fail to post");
                 *quiz = bot::Status::StandingBy;
-                *result = std::collections::BTreeMap::new();
+                *result = IndexMap::new();
             } else {
                 msg.channel_id
                     .say(&ctx, "現在コンテストは開催されていません。")
@@ -416,7 +420,7 @@ USEGE [EXTRA]:
 fn sync_setting() -> Result<(), BotError> {
     use quick_error::ResultExt;
     let path = std::path::Path::new("/tmp/settings/settings.toml");
-    let mut conf = File::create(&path).context(path)?;
+    let mut conf = OpenOptions::new().write(true).truncate(true).open(path).context(path)?;
     conf.write_all(
         toml::to_string(&*settings::SETTINGS.lock().unwrap())
             .context("/tmp/settings/settings.toml")?
@@ -430,16 +434,26 @@ fn sync_setting() -> Result<(), BotError> {
 #[command]
 pub fn enable(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~enable' by user '{}'", msg.author.name);
-    settings::SETTINGS
+    if !settings::SETTINGS
         .lock()
         .unwrap()
         .channel
-        .enabled
-        .push(*msg.channel_id.as_u64());
-    msg.channel_id
-        .say(&ctx, "このチャンネルでソートなぞなぞが有効になりました。")
-        .expect("fail to post");
-    Ok(sync_setting()?)
+        .enabled.contains(&*msg.channel_id.as_u64()) {
+        settings::SETTINGS
+            .lock()
+            .unwrap()
+            .channel
+            .enabled.push(*msg.channel_id.as_u64());
+        msg.channel_id
+            .say(&ctx, "このチャンネルでソートなぞなぞが有効になりました。")
+            .expect("fail to post");
+        Ok(sync_setting()?)
+    } else {
+        msg.channel_id
+            .say(&ctx, "このチャンネルでソートなぞなぞはすでに有効です。")
+            .expect("fail to post");
+        Ok(())
+    }
 }
 
 #[command]

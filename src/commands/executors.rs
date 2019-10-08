@@ -5,10 +5,11 @@ use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::str::from_utf8;
-
 use super::super::bot;
 use super::super::dictionary;
 use super::super::sort::Sorted;
+use super::super::bot::ContestData;
+use indexmap::IndexMap;
 
 pub(crate) fn prob(ctx: &mut Context, msg: &Message, lang: bot::Lang) -> String {
     let dic = match lang {
@@ -97,15 +98,16 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                         .say(
                             &ctx,
                             format!(
-                                "{} さん、正解です！\n正解は\"{}\"でした！",
+                                "{} さん、正解です！\n正解は\"{}\"でした！ [{:.3} sec]",
                                 &msg.author.name,
-                                quiz_guard.ans().unwrap()
+                                quiz_guard.ans().unwrap(),
+                                quiz_guard.elapsed().unwrap(),
                             ),
                         )
                         .expect("fail to post");
                     let contest_result = &mut *bot::CONTEST_REUSLT.lock().unwrap();
 
-                    *contest_result.entry(msg.author.name.clone()).or_insert(0) += 1;
+                    *contest_result.entry(msg.author.name.clone()).or_insert(ContestData::default()) += (1, quiz_guard.elapsed().unwrap());
 
                     let (_, num) = quiz_guard.get_contest_num().unwrap();
 
@@ -118,13 +120,13 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                                     num = num,
                                     result = contest_result
                                         .iter()
-                                        .sorted_by(|&(_, a), &(_, b)| b.cmp(&a))
-                                        .map(|tuple| format!("{} AC: {}\n", tuple.1, tuple.0))
+                                        .sorted_by_key(|(_, data)| data.ac)
+                                        .map(|(name, data)| format!("{}, {}\n", name, data.as_string()))
                                         .collect::<String>()
                                 ),
                             )
                             .expect("fail to post");
-                        *contest_result = BTreeMap::new();
+                        *contest_result = IndexMap::new();
                         *quiz_guard = bot::Status::StandingBy;
                     } else {
                         quiz_guard.contest_continue(ctx, msg);

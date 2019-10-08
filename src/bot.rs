@@ -1,12 +1,16 @@
 use super::dictionary::*;
 use super::sort::Sorted;
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 use rand::distributions::{Distribution, Uniform};
 use serenity::client::Context;
 use serenity::model::channel::Message;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
+use std::cmp::Ordering;
+use itertools::Itertools;
+use std::ops::AddAssign;
+
 custom_derive! {
     #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, NextVariant, PrevVariant)]
     pub enum Lang {
@@ -75,7 +79,7 @@ pub fn select_dictionary_from_str<S: Into<String>>(lang: S) -> &'static Dictiona
 pub enum Status {
     StandingBy,
     Holding(String, Lang, Instant),
-    Contesting(String, Lang, (u32, u32)),
+    Contesting(String, Lang, (u32, u32), Instant),
 }
 
 pub enum CheckResult<'a> {
@@ -167,14 +171,14 @@ impl Status {
 
     pub fn is_contest_end(&self) -> bool {
         match self {
-            Status::Contesting(_, _, (count, num)) => *count == *num,
+            Status::Contesting(_, _, (count, num), ..) => *count == *num,
             _ => false,
         }
     }
 
     pub fn get_contest_num(&self) -> Option<(&u32, &u32)> {
         match self {
-            Status::Contesting(_, _, (count, num)) => Some((count, num)),
+            Status::Contesting(_, _, (count, num), ..) => Some((count, num)),
             _ => None,
         }
     }
@@ -200,12 +204,13 @@ impl Status {
                 ),
             )
             .expect("fail to post");
-        *self = Status::Contesting(ans.to_string(), lang, (*count + 1, *num));
+        *self = Status::Contesting(ans.to_string(), lang, (*count + 1, *num), Instant::now());
     }
 
     pub fn elapsed(&self) -> Option<f32> {
         match self {
             Status::Holding(_, _, instant) => Some(instant.elapsed().as_secs_f32()),
+            Status::Contesting(_, _, _, instant) => Some(instant.elapsed().as_secs_f32()),
             _ => None,
         }
     }
@@ -242,10 +247,29 @@ impl DictionarySelector {
     }
 }
 
+#[derive(Default)]
+pub struct ContestData {
+    pub ac: u32,
+    pub time: Vec<f32>,
+}
+
+impl ContestData {
+    pub fn as_string(&self) -> String {
+        format!("{} AC, average speed = {:.3} sec", self.ac, self.time.iter().sum::<f32>() / self.ac as f32)
+    }
+}
+
+impl AddAssign<(u32, f32)> for ContestData {
+    fn add_assign(&mut self, rhs: (u32, f32)) {
+        self.ac += rhs.0;
+        self.time.push(rhs.1);
+    }
+}
+
 lazy_static! {
     pub static ref QUIZ: Arc<Mutex<Status>> = Arc::new(Mutex::new(Status::StandingBy));
-    pub static ref CONTEST_REUSLT: Arc<Mutex<BTreeMap<String, u32>>> =
-        Arc::new(Mutex::new(BTreeMap::new()));
+    pub static ref CONTEST_REUSLT: Arc<Mutex<IndexMap<String, ContestData>>> =
+        Arc::new(Mutex::new(IndexMap::new()));
     pub static ref CONTEST_LIBRARY: Arc<Mutex<DictionarySelector>> =
         Arc::new(Mutex::new(DictionarySelector::new()));
 }

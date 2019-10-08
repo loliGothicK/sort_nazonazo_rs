@@ -10,7 +10,7 @@ quick_error! {
         }
         Parse(s: &'static str, err: toml::ser::Error) {
             description(err.description())
-            display("I/O error: {} => {}", err, s)
+            display("Parse error: {} => {}", err, s)
             context(s: &'static str, err: toml::ser::Error) -> (s, err)
         }
     }
