@@ -1,16 +1,16 @@
 use super::dictionary::*;
 use super::sort::Sorted;
 use indexmap::{IndexMap, IndexSet};
+use itertools::Itertools;
 use rand::distributions::{Distribution, Uniform};
 use serenity::client::Context;
 use serenity::model::channel::Message;
-use std::collections::BTreeMap;
+
+
+
+use std::ops::AddAssign;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use std::cmp::Ordering;
-use itertools::Itertools;
-use std::ops::AddAssign;
-use std::cmp::Ord;
 
 custom_derive! {
     #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, NextVariant, PrevVariant)]
@@ -261,11 +261,18 @@ pub struct ContestData {
 
 impl ContestData {
     pub fn as_string(&self) -> String {
-        format!("{} AC, average speed = {:.3} sec", self.ac, self.time.iter().sum::<f32>() / self.ac as f32)
+        format!(
+            "{} AC, average speed = {:.3} sec",
+            self.ac,
+            self.time.iter().sum::<f32>() / self.ac as f32
+        )
     }
 
     pub fn key(&self) -> (i32, u32) {
-        (-(self.ac as i32), (self.time.iter().sum::<f32>() / self.ac as f32) as u32)
+        (
+            -(self.ac as i32),
+            (self.time.iter().sum::<f32>() / self.ac as f32) as u32,
+        )
     }
 }
 
@@ -278,10 +285,18 @@ impl AddAssign<(u32, f32)> for ContestData {
 
 pub fn aggregates(contest_result: &IndexMap<String, ContestData>) -> String {
     use ordinal::Ordinal;
-    contest_result.iter()
+    contest_result
+        .iter()
         .sorted_by_key(|(_, data)| data.key())
         .enumerate()
-        .map(|(index, (name, data))| format!("{}: {}, {}\n", Ordinal(index+1).to_string(), name, data.as_string()))
+        .map(|(index, (name, data))| {
+            format!(
+                "{}: {}, {}\n",
+                Ordinal(index + 1).to_string(),
+                name,
+                data.as_string()
+            )
+        })
         .collect::<String>()
 }
 

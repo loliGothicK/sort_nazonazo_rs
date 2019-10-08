@@ -1,15 +1,14 @@
 use serenity::{model::channel::Message, prelude::*};
 
-use itertools::Itertools;
-use std::collections::BTreeMap;
+use super::super::bot;
+use super::super::bot::ContestData;
+use super::super::dictionary;
+use super::super::sort::Sorted;
+use indexmap::IndexMap;
+
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::str::from_utf8;
-use super::super::bot;
-use super::super::dictionary;
-use super::super::sort::Sorted;
-use super::super::bot::ContestData;
-use indexmap::IndexMap;
 
 pub(crate) fn prob(ctx: &mut Context, msg: &Message, lang: bot::Lang) -> String {
     let dic = match lang {
@@ -108,7 +107,9 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                         .expect("fail to post");
                     let contest_result = &mut *bot::CONTEST_REUSLT.lock().unwrap();
 
-                    *contest_result.entry(msg.author.name.clone()).or_insert(ContestData::default()) += (1, quiz_guard.elapsed().unwrap());
+                    *contest_result
+                        .entry(msg.author.name.clone())
+                        .or_insert(ContestData::default()) += (1, quiz_guard.elapsed().unwrap());
 
                     let (_, num) = quiz_guard.get_contest_num().unwrap();
 
