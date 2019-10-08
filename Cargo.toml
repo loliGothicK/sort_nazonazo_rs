@@ -21,6 +21,7 @@ custom_derive = "0.1.7"
 enum_derive = "0.1.7"
 if_chain = "1.0.0"
 quick-error = { package = "quick-error2", version = "2" }
+ordinal = "0.2"
 #nazonazo_macros = { path = "nazonazo_macros" }
 
 [dependencies.clap]

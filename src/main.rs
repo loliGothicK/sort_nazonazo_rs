@@ -14,6 +14,7 @@ extern crate toml;
 extern crate unicode_segmentation;
 #[macro_use]
 extern crate quick_error;
+extern crate ordinal;
 //extern crate nazonazo_macros;
 
 use regex::Regex;

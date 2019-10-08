@@ -118,11 +118,7 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                                 format!(
                                     "{num}問連続のコンテストが終了しました。\n{result}",
                                     num = num,
-                                    result = contest_result
-                                        .iter()
-                                        .sorted_by_key(|(_, data)| data.ac)
-                                        .map(|(name, data)| format!("{}, {}\n", name, data.as_string()))
-                                        .collect::<String>()
+                                    result = bot::aggregates(contest_result)
                                 ),
                             )
                             .expect("fail to post");

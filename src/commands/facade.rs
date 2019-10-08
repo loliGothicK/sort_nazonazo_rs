@@ -185,7 +185,7 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
             *quiz_stat = bot::Status::StandingBy;
         } else {
             let contest_result = &mut *bot::CONTEST_REUSLT.lock().unwrap();
-            *contest_result.entry(msg.author.name.clone()).or_insert(ContestData::default()) += (1, quiz_stat.elapsed().unwrap());
+            *contest_result.entry("~giveup".to_string()).or_insert(ContestData::default()) += (1, quiz_stat.elapsed().unwrap());
             if !quiz_stat.is_contest_end() {
                 msg.channel_id
                     .say(
@@ -203,11 +203,7 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
                             "正解は \"{ans}\" でした...\n{num}問連続のコンテストが終了しました。\n{result}",
                             ans = quiz_stat.ans().unwrap(),
                             num = num,
-                            result = contest_result
-                                .iter()
-                                .sorted_by_key(|(_, data)| data.ac)
-                                .map(|(name, data)| format!("{}, {}\n", name, data.as_string()))
-                                .collect::<String>()
+                            result = bot::aggregates(contest_result)
                         ),
                     )
                     .expect("fail to post");
