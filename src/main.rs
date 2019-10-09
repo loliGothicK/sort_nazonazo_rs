@@ -54,6 +54,8 @@ fn main() {
     client.with_framework(
         StandardFramework::new()
             .configure(|c| c.prefix("~")) // set the bot's prefix to "~"
+            .bucket("basic", |b| b.delay(2).time_span(10).limit(1))
+            .bucket("long", |b| b.delay(10).time_span(60).limit(1))
             .before(|ctx, msg, command_name| {
                 let re = Regex::new(r"^enable$").unwrap();
                 if re.is_match(command_name) {
@@ -102,9 +104,9 @@ fn main() {
             })
             .group(&commands::facade::QUIZ_GROUP)
             .group(&commands::facade::CONTEST_GROUP)
-            .group(&commands::facade::HELP_GROUP)
             .group(&commands::facade::SETTINGS_GROUP)
-            .group(&commands::facade::EXTRA_GROUP),
+            .group(&commands::facade::EXTRA_GROUP)
+            .help(&commands::facade::NAZONAZO_HELP),
     );
 
     // start listening for events by starting a single shard

@@ -1,7 +1,7 @@
 use regex::Regex;
 use serenity::{
     framework::standard::{
-        macros::{command, group},
+        macros::{command, group, help, check},
         Args, CommandResult,
     },
     model::channel::Message,
@@ -16,10 +16,12 @@ use super::super::sort::Sorted;
 use super::{executors, parser};
 use crate::bot::ContestData;
 use indexmap::IndexMap;
-use std::env;
 use std::fs::{OpenOptions};
 use std::io::Write;
 use unicode_segmentation::UnicodeSegmentation;
+use serenity::framework::standard::{HelpOptions, CommandGroup, help_commands};
+use std::collections::HashSet;
+use serenity::model::id::UserId;
 
 macro_rules! count {
     ( $x:ident ) => (1usize);
@@ -31,7 +33,9 @@ macro_rules! quiz_commands {
     ( $command:ident, $( $commands:ident ),* ) => {
         group!({
             name: "quiz",
-            options: {},
+            options: {
+                description: "A group with commands providing a quiz with specific language as response.",
+            },
             commands: [$command, $($commands),*],
         });
         const COMMAND_NUM: usize = count!($($commands),*) + 1;
@@ -63,31 +67,31 @@ quiz_commands! {
 */
 group!({
     name: "extra",
-    options: {},
+    options: {
+        description: "A group with commands providing hint and giveup.",
+    },
     commands: [giveup, hint],
 });
 
 group!({
     name: "contest",
-    options: {},
+    options: {
+        description: "A group with commands providing contest mode.",
+    },
     commands: [contest, unrated],
 });
 
 group!({
-    name: "help",
-    options: {},
-    commands: [help],
-});
-
-group!({
     name: "settings",
-    options: {},
+    options: {
+        description: "A group with commands providing settings of enable/disable switch in channel.",
+    },
     commands: [enable, disable],
 });
 
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-
 #[command]
+#[description = "Provides a quiz of English as response."]
+#[bucket = "basic"]
 pub fn en(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~en' by user '{}'", msg.author.name);
     if_chain! {
@@ -102,6 +106,8 @@ pub fn en(ctx: &mut Context, msg: &Message) -> CommandResult {
 }
 
 #[command]
+#[description = "Provides a quiz of Japanese as response."]
+#[bucket = "basic"]
 pub fn ja(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~ja' by user '{}'", msg.author.name);
     if_chain! {
@@ -115,6 +121,8 @@ pub fn ja(ctx: &mut Context, msg: &Message) -> CommandResult {
     Ok(())
 }
 #[command]
+#[description = "Provides a quiz of French as response."]
+#[bucket = "basic"]
 pub fn fr(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~fr' by user '{}'", msg.author.name);
     if_chain! {
@@ -128,6 +136,8 @@ pub fn fr(ctx: &mut Context, msg: &Message) -> CommandResult {
     Ok(())
 }
 #[command]
+#[description = "Provides a quiz of German as response."]
+#[bucket = "basic"]
 pub fn de(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~de' by user '{}'", msg.author.name);
     if_chain! {
@@ -141,6 +151,8 @@ pub fn de(ctx: &mut Context, msg: &Message) -> CommandResult {
     Ok(())
 }
 #[command]
+#[description = "Provides a quiz of Italian as response."]
+#[bucket = "basic"]
 pub fn it(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~it' by user '{}'", msg.author.name);
     if_chain! {
@@ -154,6 +166,8 @@ pub fn it(ctx: &mut Context, msg: &Message) -> CommandResult {
     Ok(())
 }
 #[command]
+#[description = "Provides a quiz of Russian as response."]
+#[bucket = "basic"]
 pub fn ru(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~ru' by user '{}'", msg.author.name);
     if_chain! {
@@ -167,6 +181,8 @@ pub fn ru(ctx: &mut Context, msg: &Message) -> CommandResult {
     Ok(())
 }
 #[command]
+#[description = "Provides a quiz of Esperanto as response."]
+#[bucket = "basic"]
 pub fn eo(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~ru' by user '{}'", msg.author.name);
     if_chain! {
@@ -229,6 +245,8 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
 }
 
 #[command]
+#[description = "Allows to give up current quiz and shows answer as response."]
+#[bucket = "basic"]
 pub fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~giveup' by user '{}'", msg.author.name);
     if let Ok(mut guard) = bot::QUIZ.lock() {
@@ -239,6 +257,8 @@ pub fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
 }
 
 #[command]
+#[description = "Starts contest mode."]
+#[bucket = "long"]
 pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     use crate::bot::CONTEST_LIBRARY;
     println!("Got command '~contest' by user '{}'", msg.author.name);
@@ -281,6 +301,8 @@ pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
 }
 
 #[command]
+#[description = "Force closes current contest."]
+#[bucket = "long"]
 pub fn unrated(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~unrated' by user '{}'", msg.author.name);
     loop {
@@ -303,6 +325,8 @@ pub fn unrated(ctx: &mut Context, msg: &Message) -> CommandResult {
 }
 
 #[command]
+#[description = "Gives hint as response."]
+#[bucket = "long"]
 pub fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     println!("Got command '~hint' by user '{}'", msg.author.name);
     if_chain! {
@@ -384,46 +408,16 @@ pub fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     Ok(())
 }
 
-#[command]
-pub fn help(ctx: &mut Context, msg: &Message) -> CommandResult {
-    println!("Got command '~help' by user '{}'", msg.author.name);
-
-    if !msg.author.bot {
-        msg.channel_id
-            .say(
-                &ctx,
-                format!(
-                    r#"
-sort_nazonazo v{version}
-mitama <yussa.de.dannann@gmail.com>
-
-USAGE [QUIZ]:
-    ~{{LANG}}: LANG=[en|ja|fr|de|it]
-    => その言語で単体のクイズが出ます
-
-    ~giveup:
-    => 一問を諦めて答えを見ることができます（出題状態はキャンセルされます）。
-
-    ~hint {{NUM>=answer length}} [Optioin: --random]:
-    => 答えの最初のNUM文字をヒントとして見ることができます。
-
-USAGE [CONTEST]:
-    ~contest {{NUM<=100}} {{LANGUAGES}}...
-    => 言語オンリー連続出題を行います
-
-    ~unrated:
-    => コンテストを中止します
-
-USEGE [EXTRA]:
-    ~help:
-    => 今あなたが使ったコマンドです。見てのとおりです。
-                "#,
-                    version = VERSION
-                ),
-            )
-            .expect("fail to post");
-    }
-    Ok(())
+#[help]
+fn nazonazo_help(
+    context: &mut Context,
+    msg: &Message,
+    args: Args,
+    help_options: &'static HelpOptions,
+    groups: &[&'static CommandGroup],
+    owners: HashSet<UserId>
+) -> CommandResult {
+    help_commands::with_embeds(context, msg, args, help_options, groups, owners)
 }
 
 fn sync_setting() -> Result<(), BotError> {
@@ -445,6 +439,8 @@ fn sync_setting() -> Result<(), BotError> {
 }
 
 #[command]
+#[description = "Enable nazonazo bot on a channel."]
+#[bucket = "long"]
 pub fn enable(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~enable' by user '{}'", msg.author.name);
     if !settings::SETTINGS
@@ -473,6 +469,8 @@ pub fn enable(ctx: &mut Context, msg: &Message) -> CommandResult {
 }
 
 #[command]
+#[description = "Disable nazonazo bot on a channel."]
+#[bucket = "long"]
 pub fn disable(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~disable' by user '{}'", msg.author.name);
     settings::SETTINGS
