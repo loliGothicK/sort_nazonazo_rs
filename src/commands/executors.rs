@@ -132,6 +132,9 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                 }
             }
             bot::CheckResult::Anagram(ans) => {
+                *bot::CONTEST_REUSLT.lock().unwrap()
+                    .entry(msg.author.name.clone())
+                    .or_insert(ContestData::default()) += (1, quiz_guard.elapsed().unwrap());
                 msg.channel_id
                     .say(
                         &ctx,
@@ -144,6 +147,9 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                     .expect("fail to post");
             }
             bot::CheckResult::Full(ans) => {
+                *bot::CONTEST_REUSLT.lock().unwrap()
+                    .entry(msg.author.name.clone())
+                    .or_insert(ContestData::default()) += (1, quiz_guard.elapsed().unwrap());
                 msg.channel_id
                     .say(
                         &ctx,
