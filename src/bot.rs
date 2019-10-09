@@ -6,8 +6,6 @@ use rand::distributions::{Distribution, Uniform};
 use serenity::client::Context;
 use serenity::model::channel::Message;
 
-
-
 use std::ops::AddAssign;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;

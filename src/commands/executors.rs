@@ -6,6 +6,7 @@ use super::super::dictionary;
 use super::super::sort::Sorted;
 use indexmap::IndexMap;
 
+use crate::try_say;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::str::from_utf8;
@@ -55,17 +56,13 @@ fn main() {{
     match Command::new("rustc").arg("/tmp/main.rs").output() {
         Ok(output) => {
             if output.status.success() {
-                msg.channel_id.say(&ctx, "ヒィンｗ").expect("fail to post");
+                try_say!(ctx, msg, "ヒィンｗ");
             } else {
-                msg.channel_id
-                    .say(&ctx, from_utf8(output.stderr.as_slice()).unwrap())
-                    .expect("fail to post");
+                try_say!(ctx, msg, from_utf8(output.stderr.as_slice()).unwrap());
             }
         }
         Err(e) => {
-            msg.channel_id
-                .say(&ctx, format!("{:?}", e))
-                .expect("fail to post");
+            try_say!(ctx, msg, format!("{:?}", e));
         }
     }
     Ok(())
@@ -132,7 +129,9 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                 }
             }
             bot::CheckResult::Anagram(ans) => {
-                *bot::CONTEST_REUSLT.lock().unwrap()
+                *bot::CONTEST_REUSLT
+                    .lock()
+                    .unwrap()
                     .entry(msg.author.name.clone())
                     .or_insert(ContestData::default()) += (1, quiz_guard.elapsed().unwrap());
                 msg.channel_id
@@ -147,7 +146,9 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                     .expect("fail to post");
             }
             bot::CheckResult::Full(ans) => {
-                *bot::CONTEST_REUSLT.lock().unwrap()
+                *bot::CONTEST_REUSLT
+                    .lock()
+                    .unwrap()
                     .entry(msg.author.name.clone())
                     .or_insert(ContestData::default()) += (1, quiz_guard.elapsed().unwrap());
                 msg.channel_id

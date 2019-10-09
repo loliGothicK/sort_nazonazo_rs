@@ -34,6 +34,15 @@ use sort::Sorted;
 use commands::{executors, facade};
 use serenity::model::id::ChannelId;
 
+#[macro_export]
+macro_rules! try_say {
+    ($ctx: expr, $msg: expr, $response: expr) => {
+        if let Err(why) = ($msg).channel_id.say(&($ctx), $response) {
+            println!("{}", why);
+        }
+    };
+}
+
 struct Handler;
 
 impl EventHandler for Handler {
@@ -69,21 +78,19 @@ fn main() {
                 if facade::QUIZ_COMMANDS_REGEX.is_match(&command_name.to_string()) {
                     match &*bot::QUIZ.lock().unwrap() {
                         bot::Status::Holding(ref ans, ..) => {
-                            msg.channel_id
-                                .say(
-                                    &ctx,
-                                    format!("前回の出題が解かれていません\n問題: {}", ans.sorted()),
-                                )
-                                .expect("fail to post");
+                            try_say!(
+                                ctx,
+                                msg,
+                                format!("前回の出題が解かれていません\n問題: {}", ans.sorted())
+                            );
                             false
                         }
                         bot::Status::Contesting(ref ans, ..) => {
-                            msg.channel_id
-                                .say(
-                                    &ctx,
-                                    format!("現在コンテスト中です\n問題: {}", ans.sorted()),
-                                )
-                                .expect("fail to post");
+                            try_say!(
+                                ctx,
+                                msg,
+                                format!("現在コンテスト中です\n問題: {}", ans.sorted())
+                            );
                             false
                         }
                         bot::Status::StandingBy => true,

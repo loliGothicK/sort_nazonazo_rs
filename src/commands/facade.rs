@@ -1,7 +1,7 @@
 use regex::Regex;
 use serenity::{
     framework::standard::{
-        macros::{command, group, help, check},
+        macros::{command, group, help},
         Args, CommandResult,
     },
     model::channel::Message,
@@ -15,13 +15,14 @@ use super::super::settings;
 use super::super::sort::Sorted;
 use super::{executors, parser};
 use crate::bot::ContestData;
+use crate::try_say;
 use indexmap::IndexMap;
-use std::fs::{OpenOptions};
+use serenity::framework::standard::{help_commands, CommandGroup, HelpOptions};
+use serenity::model::id::UserId;
+use std::collections::HashSet;
+use std::fs::OpenOptions;
 use std::io::Write;
 use unicode_segmentation::UnicodeSegmentation;
-use serenity::framework::standard::{HelpOptions, CommandGroup, help_commands};
-use std::collections::HashSet;
-use serenity::model::id::UserId;
 
 macro_rules! count {
     ( $x:ident ) => (1usize);
@@ -199,16 +200,13 @@ pub fn eo(ctx: &mut Context, msg: &Message) -> CommandResult {
 fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) -> CommandResult {
     if !msg.author.bot {
         if quiz_stat.is_standing_by() {
-            msg.channel_id
-                .say(&ctx, "現在問題は出ていません。")
-                .expect("fail to post");
+            try_say!(ctx, msg, "現在問題は出ていません。");
         } else if quiz_stat.is_holding() {
-            msg.channel_id
-                .say(
-                    &ctx,
-                    format!("正解は \"{}\" でした...", quiz_stat.ans().unwrap()),
-                )
-                .expect("fail to post");
+            try_say!(
+                ctx,
+                msg,
+                format!("正解は \"{}\" でした...", quiz_stat.ans().unwrap())
+            );
             *quiz_stat = bot::Status::StandingBy;
         } else {
             let contest_result = &mut *bot::CONTEST_REUSLT.lock().unwrap();
@@ -216,12 +214,11 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
                 .entry("~giveup".to_string())
                 .or_insert(ContestData::default()) += (1, quiz_stat.elapsed().unwrap());
             if !quiz_stat.is_contest_end() {
-                msg.channel_id
-                    .say(
-                        &ctx,
-                        format!("正解は \"{}\" でした...", quiz_stat.ans().unwrap()),
-                    )
-                    .expect("fail to post");
+                try_say!(
+                    ctx,
+                    msg,
+                    format!("正解は \"{}\" でした...", quiz_stat.ans().unwrap())
+                );
                 quiz_stat.contest_continue(ctx, &msg);
             } else {
                 let (_, num) = quiz_stat.get_contest_num().unwrap();
@@ -269,7 +266,7 @@ pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
         then {
             match parser::contest(&mut args) {
                 Err(err_msg) => {
-                    msg.channel_id.say(&ctx, err_msg).expect("fail to post");
+                    try_say!(ctx,msg,err_msg);
                     return Ok(());
                 }
                 Ok((num, mut languages)) => {
@@ -308,15 +305,11 @@ pub fn unrated(ctx: &mut Context, msg: &Message) -> CommandResult {
     loop {
         if let (Ok(mut quiz), Ok(mut result)) = (bot::QUIZ.lock(), bot::CONTEST_REUSLT.lock()) {
             if quiz.is_contesting() {
-                msg.channel_id
-                    .say(&ctx, "コンテストを中止します。")
-                    .expect("fail to post");
+                try_say!(ctx, msg, "コンテストを中止します。");
                 *quiz = bot::Status::StandingBy;
                 *result = IndexMap::new();
             } else {
-                msg.channel_id
-                    .say(&ctx, "現在コンテストは開催されていません。")
-                    .expect("fail to post");
+                try_say!(ctx, msg, "現在コンテストは開催されていません。");
             }
             break;
         }
@@ -337,25 +330,17 @@ pub fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
             let mut g = UnicodeSegmentation::graphemes(guard.ans().unwrap().as_str(), true).collect::<Vec<&str>>();
             match parser::hint(&mut args) {
                 Err(err_msg) => {
-                    msg.channel_id
-                        .say(&ctx, format!("{}", err_msg))
-                        .expect("fail to post");
+                    try_say!(ctx,msg,format!("{}", err_msg));
                 },
                 Ok(parser::Hint::First(num)) | Ok(parser::Hint::Random(num)) if num == 0 => {
-                    msg.channel_id
-                        .say(&ctx, "ゼロ文字ヒントは意味ねえよ、ボケ！")
-                        .expect("fail to post");
+                    try_say!(ctx,msg,"ゼロ文字ヒントは意味ねえよ、ボケ！");
                 },
                 Ok(parser::Hint::First(num)) | Ok(parser::Hint::Random(num)) if num == g.len() || num == g.len() - 1 => {
-                    msg.channel_id
-                        .say(&ctx, "答えが一意に定まるためギブアップとみなされました！")
-                        .expect("fail to post");
+                    try_say!(ctx,msg,"答えが一意に定まるためギブアップとみなされました！");
                     giveup_impl(ctx, msg, &mut *guard)?;
                 },
                 Ok(parser::Hint::First(num)) | Ok(parser::Hint::Random(num)) if num > g.len() => {
-                    msg.channel_id
-                        .say(&ctx, "問題の文字数より長えよボケが！")
-                        .expect("fail to post");
+                    try_say!(ctx,msg,"問題の文字数より長えよボケが！");
                 },
                 Ok(parser::Hint::First(num)) => {
                     g.truncate(num);
@@ -393,14 +378,10 @@ pub fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
         } else {
             match parser::hint(&mut args) {
                 Err(err_msg) => {
-                    msg.channel_id
-                        .say(&ctx, format!("{}", err_msg))
-                        .expect("fail to post");
+                    try_say!(ctx,msg,format!("{}", err_msg));
                 },
                 Ok(_) => {
-                    msg.channel_id
-                        .say(&ctx, "問題が出てないですよ？")
-                        .expect("fail to post");
+                    try_say!(ctx,msg,"問題が出てないですよ？");
                 },
             }
         }
@@ -415,7 +396,7 @@ fn nazonazo_help(
     args: Args,
     help_options: &'static HelpOptions,
     groups: &[&'static CommandGroup],
-    owners: HashSet<UserId>
+    owners: HashSet<UserId>,
 ) -> CommandResult {
     help_commands::with_embeds(context, msg, args, help_options, groups, owners)
 }
@@ -456,14 +437,14 @@ pub fn enable(ctx: &mut Context, msg: &Message) -> CommandResult {
             .channel
             .enabled
             .push(*msg.channel_id.as_u64());
-        msg.channel_id
-            .say(&ctx, "このチャンネルでソートなぞなぞが有効になりました。")
-            .expect("fail to post");
+        try_say!(
+            ctx,
+            msg,
+            "このチャンネルでソートなぞなぞが有効になりました。"
+        );
         Ok(sync_setting()?)
     } else {
-        msg.channel_id
-            .say(&ctx, "このチャンネルでソートなぞなぞはすでに有効です。")
-            .expect("fail to post");
+        try_say!(ctx, msg, "このチャンネルでソートなぞなぞはすでに有効です。");
         Ok(())
     }
 }
@@ -479,8 +460,10 @@ pub fn disable(ctx: &mut Context, msg: &Message) -> CommandResult {
         .channel
         .enabled
         .retain(|id| *id != *msg.channel_id.as_u64());
-    msg.channel_id
-        .say(&ctx, "このチャンネルでソートなぞなぞが無効になりました。")
-        .expect("fail to post");
+    try_say!(
+        ctx,
+        msg,
+        "このチャンネルでソートなぞなぞが無効になりました。"
+    );
     Ok(sync_setting()?)
 }
