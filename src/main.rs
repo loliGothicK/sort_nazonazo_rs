@@ -63,7 +63,7 @@ fn main() {
     client.with_framework(
         StandardFramework::new()
             .configure(|c| c.prefix("~")) // set the bot's prefix to "~"
-            .bucket("basic", |b| b.delay(2).time_span(5).limit(1))
+            .bucket("basic", |b| b.delay(1).time_span(0).limit(1))
             .bucket("long", |b| b.delay(10).time_span(60).limit(1))
             .before(|ctx, msg, command_name| {
                 let re = Regex::new(r"^enable$").unwrap();
