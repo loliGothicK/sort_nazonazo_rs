@@ -63,14 +63,18 @@ fn main() {
     client.with_framework(
         StandardFramework::new()
             .configure(|c| c.prefix("~")) // set the bot's prefix to "~"
-            .bucket("basic", |b| b.delay(2).time_span(10).limit(1))
+            .bucket("basic", |b| b.delay(2).time_span(5).limit(1))
             .bucket("long", |b| b.delay(10).time_span(60).limit(1))
             .before(|ctx, msg, command_name| {
                 let re = Regex::new(r"^enable$").unwrap();
                 if re.is_match(command_name) {
                     return true;
                 }
-                if !dbg!(&settings::SETTINGS.lock().unwrap().channel.enabled)
+                if !settings::SETTINGS
+                    .lock()
+                    .unwrap()
+                    .channel
+                    .enabled
                     .contains(msg.channel_id.as_u64())
                 {
                     return false;
