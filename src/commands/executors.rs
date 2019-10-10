@@ -155,7 +155,7 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                     .say(
                         &ctx,
                         format!(
-                            "{} さん、{} は出題辞書に非想定解ですが正解です！",
+                            "{} さん、{} は出題辞書にない非想定解ですが正解です！",
                             &msg.author.name,
                             ans.to_lowercase()
                         ),
