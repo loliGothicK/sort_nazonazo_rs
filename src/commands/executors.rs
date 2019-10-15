@@ -78,31 +78,29 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
             }
             bot::CheckResult::Assumed(_ans) => {
                 if quiz_guard.is_holding() {
-                    msg.channel_id
-                        .say(
-                            &ctx,
-                            format!(
-                                "{} さん、正解です！\n正解は\"{}\"でした！ [{:.3} sec]",
-                                &msg.author.name,
-                                quiz_guard.ans().unwrap(),
-                                elapsed.unwrap(),
-                            ),
+                    try_say!(
+                        ctx,
+                        msg,
+                        format!(
+                            "{} さん、正解です！\n正解は\"{}\"でした！ [{:.3} sec]",
+                            &msg.author.name,
+                            quiz_guard.ans().unwrap(),
+                            elapsed.unwrap(),
                         )
-                        .expect("fail to post");
+                    );
                     *quiz_guard = bot::Status::StandingBy;
                     return;
                 } else if quiz_guard.is_contesting() {
-                    msg.channel_id
-                        .say(
-                            &ctx,
-                            format!(
-                                "{} さん、正解です！\n正解は\"{}\"でした！ [{:.3} sec]",
-                                &msg.author.name,
-                                quiz_guard.ans().unwrap(),
-                                elapsed.unwrap(),
-                            ),
+                    try_say!(
+                        ctx,
+                        msg,
+                        format!(
+                            "{} さん、正解です！\n正解は\"{}\"でした！ [{:.3} sec]",
+                            &msg.author.name,
+                            quiz_guard.ans().unwrap(),
+                            elapsed.unwrap(),
                         )
-                        .expect("fail to post");
+                    );
                     let contest_result = &mut *bot::CONTEST_REUSLT.lock().unwrap();
 
                     *contest_result
@@ -112,16 +110,15 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                     let (_, num) = quiz_guard.get_contest_num().unwrap();
 
                     if quiz_guard.is_contest_end() {
-                        msg.channel_id
-                            .say(
-                                &ctx,
-                                format!(
-                                    "{num}問連続のコンテストが終了しました。\n{result}",
-                                    num = num,
-                                    result = bot::aggregates(dbg!(&*contest_result))
-                                ),
+                        try_say!(
+                            ctx,
+                            msg,
+                            format!(
+                                "{num}問連続のコンテストが終了しました。\n{result}",
+                                num = num,
+                                result = bot::aggregates(dbg!(&*contest_result))
                             )
-                            .expect("fail to post");
+                        );
                         *contest_result = IndexMap::new();
                         *quiz_guard = bot::Status::StandingBy;
                     } else {
@@ -135,16 +132,15 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                     .unwrap()
                     .entry(msg.author.name.clone())
                     .or_insert(ContestData::default()) += elapsed.unwrap();
-                msg.channel_id
-                    .say(
-                        &ctx,
-                        format!(
-                            "{} さん、{} は非想定解ですが正解です！",
-                            &msg.author.name,
-                            ans.to_lowercase()
-                        ),
+                try_say!(
+                    ctx,
+                    msg,
+                    format!(
+                        "{} さん、{} は非想定解ですが正解です！",
+                        &msg.author.name,
+                        ans.to_lowercase()
                     )
-                    .expect("fail to post");
+                );
             }
             bot::CheckResult::Full(ans) => {
                 *bot::CONTEST_REUSLT
@@ -152,16 +148,15 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                     .unwrap()
                     .entry(msg.author.name.clone())
                     .or_insert(ContestData::default()) += elapsed.unwrap();
-                msg.channel_id
-                    .say(
-                        &ctx,
-                        format!(
-                            "{} さん、{} は出題辞書にない非想定解ですが正解です！",
-                            &msg.author.name,
-                            ans.to_lowercase()
-                        ),
+                try_say!(
+                    ctx,
+                    msg,
+                    format!(
+                        "{} さん、{} は出題辞書にない非想定解ですが正解です！",
+                        &msg.author.name,
+                        ans.to_lowercase()
                     )
-                    .expect("fail to post");
+                );
             }
         }
     }
