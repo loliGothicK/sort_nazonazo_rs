@@ -102,7 +102,7 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                             ),
                         )
                         .expect("fail to post");
-                    let contest_result = &mut *bot::CONTEST_REUSLT.lock().unwrap();
+                    let contest_result = &mut *bot::CONTEST_RESULT.lock().unwrap();
 
                     *contest_result
                         .entry(msg.author.name.clone())
@@ -129,7 +129,7 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                 }
             }
             bot::CheckResult::Anagram(ans) => {
-                *bot::CONTEST_REUSLT
+                *bot::CONTEST_RESULT
                     .lock()
                     .unwrap()
                     .entry(msg.author.name.clone())
@@ -146,7 +146,7 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                     .expect("fail to post");
             }
             bot::CheckResult::Full(ans) => {
-                *bot::CONTEST_REUSLT
+                *bot::CONTEST_RESULT
                     .lock()
                     .unwrap()
                     .entry(msg.author.name.clone())

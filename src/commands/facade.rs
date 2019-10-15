@@ -209,7 +209,7 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
             );
             *quiz_stat = bot::Status::StandingBy;
         } else {
-            let contest_result = &mut *bot::CONTEST_REUSLT.lock().unwrap();
+            let contest_result = &mut *bot::CONTEST_RESULT.lock().unwrap();
             *contest_result
                 .entry("~giveup".to_string())
                 .or_insert(ContestData::default()) += (1, quiz_stat.elapsed().unwrap());
@@ -303,7 +303,7 @@ pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
 pub fn unrated(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~unrated' by user '{}'", msg.author.name);
     loop {
-        if let (Ok(mut quiz), Ok(mut result)) = (bot::QUIZ.lock(), bot::CONTEST_REUSLT.lock()) {
+        if let (Ok(mut quiz), Ok(mut result)) = (bot::QUIZ.lock(), bot::CONTEST_RESULT.lock()) {
             if quiz.is_contesting() {
                 try_say!(ctx, msg, "コンテストを中止します。");
                 *quiz = bot::Status::StandingBy;

@@ -295,7 +295,7 @@ pub fn aggregates(contest_result: &IndexMap<String, ContestData>) -> String {
 
 lazy_static! {
     pub static ref QUIZ: Arc<Mutex<Status>> = Arc::new(Mutex::new(Status::StandingBy));
-    pub static ref CONTEST_REUSLT: Arc<Mutex<IndexMap<String, ContestData>>> =
+    pub static ref CONTEST_RESULT: Arc<Mutex<IndexMap<String, ContestData>>> =
         Arc::new(Mutex::new(IndexMap::new()));
     pub static ref CONTEST_LIBRARY: Arc<Mutex<DictionarySelector>> =
         Arc::new(Mutex::new(DictionarySelector::new()));
