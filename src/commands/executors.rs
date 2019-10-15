@@ -70,6 +70,7 @@ fn main() {{
 
 pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
     if let Ok(mut quiz_guard) = bot::QUIZ.lock() {
+        let elapsed = quiz_guard.elapsed();
         match quiz_guard.answer_check(&msg.content) {
             bot::CheckResult::WA => {
                 // includes the case that bot is standing by.
@@ -84,7 +85,7 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                                 "{} さん、正解です！\n正解は\"{}\"でした！ [{:.3} sec]",
                                 &msg.author.name,
                                 quiz_guard.ans().unwrap(),
-                                quiz_guard.elapsed().unwrap(),
+                                elapsed.unwrap(),
                             ),
                         )
                         .expect("fail to post");
@@ -98,7 +99,7 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                                 "{} さん、正解です！\n正解は\"{}\"でした！ [{:.3} sec]",
                                 &msg.author.name,
                                 quiz_guard.ans().unwrap(),
-                                quiz_guard.elapsed().unwrap(),
+                                elapsed.unwrap(),
                             ),
                         )
                         .expect("fail to post");
@@ -106,7 +107,7 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
 
                     *contest_result
                         .entry(msg.author.name.clone())
-                        .or_insert(ContestData::default()) += (1, quiz_guard.elapsed().unwrap());
+                        .or_insert(ContestData::default()) += elapsed.unwrap();
 
                     let (_, num) = quiz_guard.get_contest_num().unwrap();
 
@@ -117,7 +118,7 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                                 format!(
                                     "{num}問連続のコンテストが終了しました。\n{result}",
                                     num = num,
-                                    result = bot::aggregates(contest_result)
+                                    result = bot::aggregates(dbg!(&*contest_result))
                                 ),
                             )
                             .expect("fail to post");
@@ -133,7 +134,7 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                     .lock()
                     .unwrap()
                     .entry(msg.author.name.clone())
-                    .or_insert(ContestData::default()) += (1, quiz_guard.elapsed().unwrap());
+                    .or_insert(ContestData::default()) += elapsed.unwrap();
                 msg.channel_id
                     .say(
                         &ctx,
@@ -150,7 +151,7 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                     .lock()
                     .unwrap()
                     .entry(msg.author.name.clone())
-                    .or_insert(ContestData::default()) += (1, quiz_guard.elapsed().unwrap());
+                    .or_insert(ContestData::default()) += elapsed.unwrap();
                 msg.channel_id
                     .say(
                         &ctx,

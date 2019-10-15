@@ -246,9 +246,8 @@ impl DictionarySelector {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ContestData {
-    pub ac: u32,
     pub time: Vec<f32>,
 }
 
@@ -256,23 +255,22 @@ impl ContestData {
     pub fn as_string(&self) -> String {
         format!(
             "{} AC, average speed = {:.3} sec",
-            self.ac,
-            self.time.iter().sum::<f32>() / self.ac as f32
+            self.time.len(),
+            self.time.iter().sum::<f32>() / self.time.len() as f32
         )
     }
 
     pub fn key(&self) -> (i32, u32) {
         (
-            -(self.ac as i32),
-            (self.time.iter().sum::<f32>() / self.ac as f32) as u32,
+            -(self.time.len() as i32),
+            (self.time.iter().map(|x| x * 1000.0).sum::<f32>() / self.time.len() as f32) as u32
         )
     }
 }
 
-impl AddAssign<(u32, f32)> for ContestData {
-    fn add_assign(&mut self, rhs: (u32, f32)) {
-        self.ac += rhs.0;
-        self.time.push(rhs.1);
+impl AddAssign<f32> for ContestData {
+    fn add_assign(&mut self, rhs: f32) {
+        self.time.push(rhs);
     }
 }
 
