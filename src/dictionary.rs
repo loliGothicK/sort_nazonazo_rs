@@ -31,11 +31,11 @@ impl Dictionary {
         self.full.as_ref().map(|dic| dic.len())
     }
 
-    pub fn contains(&self, word: &String) -> bool {
+    pub fn contains(&self, word: &str) -> bool {
         self.questions.contains(word)
     }
 
-    pub fn contains_ex(&self, word: &String) -> bool {
+    pub fn contains_ex(&self, word: &str) -> bool {
         self.full
             .as_ref()
             .map(|x| x.contains(word))

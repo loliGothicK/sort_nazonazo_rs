@@ -100,7 +100,7 @@ pub fn en(ctx: &mut Context, msg: &Message) -> CommandResult {
         if let Ok(mut guard) = bot::QUIZ.lock();
         then {
             let ans = executors::prob(ctx, &msg, bot::Lang::En);
-            *guard = bot::Status::Holding(ans.clone(), bot::Lang::En, Instant::now());
+            *guard = bot::Status::Holding(ans, bot::Lang::En, Instant::now());
         }
     }
     Ok(())
@@ -116,7 +116,7 @@ pub fn ja(ctx: &mut Context, msg: &Message) -> CommandResult {
         if let Ok(mut guard) = bot::QUIZ.lock();
         then {
             let ans = executors::prob(ctx, &msg, bot::Lang::Ja);
-            *guard = bot::Status::Holding(ans.clone(), bot::Lang::Ja, Instant::now());
+            *guard = bot::Status::Holding(ans, bot::Lang::Ja, Instant::now());
         }
     }
     Ok(())
@@ -131,7 +131,7 @@ pub fn fr(ctx: &mut Context, msg: &Message) -> CommandResult {
         if let Ok(mut guard) = bot::QUIZ.lock();
         then {
             let ans = executors::prob(ctx, &msg, bot::Lang::Fr);
-            *guard = bot::Status::Holding(ans.clone(), bot::Lang::Fr, Instant::now());
+            *guard = bot::Status::Holding(ans, bot::Lang::Fr, Instant::now());
         }
     }
     Ok(())
@@ -146,7 +146,7 @@ pub fn de(ctx: &mut Context, msg: &Message) -> CommandResult {
         if let Ok(mut guard) = bot::QUIZ.lock();
         then {
             let ans = executors::prob(ctx, &msg, bot::Lang::De);
-            *guard = bot::Status::Holding(ans.clone(), bot::Lang::De, Instant::now());
+            *guard = bot::Status::Holding(ans, bot::Lang::De, Instant::now());
         }
     }
     Ok(())
@@ -161,7 +161,7 @@ pub fn it(ctx: &mut Context, msg: &Message) -> CommandResult {
         if let Ok(mut guard) = bot::QUIZ.lock();
         then {
             let ans = executors::prob(ctx, &msg, bot::Lang::It);
-            *guard = bot::Status::Holding(ans.clone(), bot::Lang::It, Instant::now());
+            *guard = bot::Status::Holding(ans, bot::Lang::It, Instant::now());
         }
     }
     Ok(())
@@ -176,7 +176,7 @@ pub fn ru(ctx: &mut Context, msg: &Message) -> CommandResult {
         if let Ok(mut guard) = bot::QUIZ.lock();
         then {
             let ans = executors::prob(ctx, &msg, bot::Lang::Ru);
-            *guard = bot::Status::Holding(ans.clone(), bot::Lang::Ru, Instant::now());
+            *guard = bot::Status::Holding(ans, bot::Lang::Ru, Instant::now());
         }
     }
     Ok(())
@@ -191,7 +191,7 @@ pub fn eo(ctx: &mut Context, msg: &Message) -> CommandResult {
         if let Ok(mut guard) = bot::QUIZ.lock();
         then {
             let ans = executors::prob(ctx, &msg, bot::Lang::Eo);
-            *guard = bot::Status::Holding(ans.clone(), bot::Lang::Eo, Instant::now());
+            *guard = bot::Status::Holding(ans, bot::Lang::Eo, Instant::now());
         }
     }
     Ok(())

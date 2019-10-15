@@ -15,12 +15,12 @@ fn range_validator(low: u32, up: u32) -> Box<dyn Fn(String) -> Result<(), String
 fn parse_validator<T: std::str::FromStr>(num: String) -> Result<(), String> {
     num.parse::<T>()
         .map(|_| ())
-        .map_err(|_| format!("`{}` is invalid.", num).to_string())
+        .map_err(|_| format!("`{}` is invalid.", num))
 }
 
 fn language_validator(language: String) -> Result<(), String> {
     if !facade::QUIZ_COMMANDS_REGEX.is_match(&language) {
-        Err(format!("unexpected language '{}'.", language).to_string())
+        Err(format!("unexpected language '{}'.", language))
     } else {
         Ok(())
     }
@@ -50,8 +50,7 @@ pub(crate) fn contest(
         )
         .get_matches_from_safe(
             std::iter::once("contest".to_string())
-                .chain(args.iter::<String>().filter_map(Result::ok))
-                .into_iter(),
+                .chain(args.iter::<String>().filter_map(Result::ok)),
         )
         .map(|matches| {
             let num = matches.value_of("number").unwrap().parse::<u32>().unwrap();
@@ -89,9 +88,7 @@ pub(crate) fn hint(args: &mut serenity::framework::standard::Args) -> clap::Resu
                 .required(false),
         )
         .get_matches_from_safe(
-            std::iter::once("hint".to_string())
-                .chain(args.iter::<String>().filter_map(Result::ok))
-                .into_iter(),
+            std::iter::once("hint".to_string()).chain(args.iter::<String>().filter_map(Result::ok)),
         )
         .map(|matches| {
             let num = matches
