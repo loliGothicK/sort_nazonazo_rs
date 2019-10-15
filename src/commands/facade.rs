@@ -185,7 +185,7 @@ pub fn ru(ctx: &mut Context, msg: &Message) -> CommandResult {
 #[description = "Provides a quiz of Esperanto as response."]
 #[bucket = "basic"]
 pub fn eo(ctx: &mut Context, msg: &Message) -> CommandResult {
-    println!("Got command '~ru' by user '{}'", msg.author.name);
+    println!("Got command '~eo' by user '{}'", msg.author.name);
     if_chain! {
         if !msg.author.bot;
         if let Ok(mut guard) = bot::QUIZ.lock();
