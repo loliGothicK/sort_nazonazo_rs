@@ -24,7 +24,7 @@ custom_derive! {
 }
 
 impl Lang {
-    pub fn as_symbol(&self) -> String {
+    pub fn as_symbol(self) -> String {
         match self {
             Lang::En => "英単語".to_string(),
             Lang::Ja => "単語".to_string(),
@@ -87,9 +87,9 @@ pub enum Status {
 }
 
 pub enum CheckResult<'a> {
-    Assumed(&'a String),
-    Anagram(&'a String),
-    Full(&'a String),
+    Assumed(&'a str),
+    Anagram(&'a str),
+    Full(&'a str),
     WA,
 }
 
@@ -129,14 +129,14 @@ impl Status {
         }
     }
 
-    pub fn is_correct_answer(&self, got: &String) -> bool {
+    pub fn is_correct_answer(&self, got: &str) -> bool {
         match self {
             Status::StandingBy => false,
             Status::Contesting(ans, ..) | Status::Holding(ans, ..) => ans == &got.to_lowercase(),
         }
     }
 
-    pub fn is_anagram(&self, got: &String) -> bool {
+    pub fn is_anagram(&self, got: &str) -> bool {
         match self {
             Status::StandingBy => false,
             Status::Contesting(ans, ..) | Status::Holding(ans, ..) => {
@@ -146,7 +146,7 @@ impl Status {
         }
     }
 
-    pub fn is_anagram_by_full(&self, got: &String) -> bool {
+    pub fn is_anagram_by_full(&self, got: &str) -> bool {
         match self {
             Status::StandingBy => false,
             _ => {
@@ -159,7 +159,7 @@ impl Status {
         }
     }
 
-    pub fn answer_check<'a>(&self, msg: &'a String) -> CheckResult<'a> {
+    pub fn answer_check<'a>(&self, msg: &'a str) -> CheckResult<'a> {
         match self {
             _ if self.is_correct_answer(msg) => CheckResult::Assumed(msg),
             _ if self.is_anagram(msg) => CheckResult::Anagram(msg),
@@ -220,6 +220,12 @@ pub struct DictionarySelector {
     set: IndexSet<Lang>,
 }
 
+impl Default for DictionarySelector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DictionarySelector {
     pub fn new() -> DictionarySelector {
         DictionarySelector {
@@ -242,7 +248,7 @@ impl DictionarySelector {
             .engine
             .as_ref()
             .unwrap_or_else(|uniform| self.set.get_index(uniform.sample(rng)).unwrap());
-        (get_dictionary(lang.clone()), lang)
+        (get_dictionary(lang), lang)
     }
 }
 
@@ -263,7 +269,7 @@ impl ContestData {
     pub fn key(&self) -> (i32, u32) {
         (
             -(self.time.len() as i32),
-            (self.time.iter().map(|x| x * 1000.0).sum::<f32>() / self.time.len() as f32) as u32
+            (self.time.iter().map(|x| x * 1000.0).sum::<f32>() / self.time.len() as f32) as u32,
         )
     }
 }

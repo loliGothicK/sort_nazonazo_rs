@@ -66,8 +66,7 @@ fn main() {
             .bucket("basic", |b| b.delay(1).time_span(0).limit(1))
             .bucket("long", |b| b.delay(10).time_span(60).limit(1))
             .before(|ctx, msg, command_name| {
-                let re = Regex::new(r"^enable$").unwrap();
-                if re.is_match(command_name) {
+                if command_name == "enable" {
                     return true;
                 }
                 if !settings::SETTINGS
