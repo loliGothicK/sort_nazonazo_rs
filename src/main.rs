@@ -64,7 +64,7 @@ fn main() {
         StandardFramework::new()
             .configure(|c| c.prefix("~")) // set the bot's prefix to "~"
             .bucket("basic", |b| b.delay(1).time_span(0).limit(1))
-            .bucket("long", |b| b.delay(10).time_span(60).limit(1))
+            .bucket("long", |b| b.delay(1).time_span(2).limit(1))
             .before(|ctx, msg, command_name| {
                 if command_name == "enable" {
                     return true;
