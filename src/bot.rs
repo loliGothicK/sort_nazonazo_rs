@@ -87,9 +87,9 @@ pub enum Status {
 }
 
 pub enum CheckResult<'a> {
-    Assumed(&'a String),
-    Anagram(&'a String),
-    Full(&'a String),
+    Assumed(&'a str),
+    Anagram(&'a str),
+    Full(&'a str),
     WA,
 }
 
@@ -159,7 +159,7 @@ impl Status {
         }
     }
 
-    pub fn answer_check<'a>(&self, msg: &'a String) -> CheckResult<'a> {
+    pub fn answer_check<'a>(&self, msg: &'a str) -> CheckResult<'a> {
         match self {
             _ if self.is_correct_answer(msg) => CheckResult::Assumed(msg),
             _ if self.is_anagram(msg) => CheckResult::Anagram(msg),
