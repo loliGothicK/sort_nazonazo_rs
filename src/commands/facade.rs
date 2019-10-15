@@ -282,7 +282,7 @@ pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
                         .say(
                             &ctx,
                             format!(
-                                "{number}問のコンテストを始めます。\n問 1 (1/{number})\nソートなぞなぞ ソート前の {symbol} な〜んだ？\n{prob}",
+                                "{number}問のコンテストを始めます。\n問 1 (1/{number})\nソートなぞなぞ ソート前の {symbol} な〜んだ？\n`{prob}`",
                                 number = num,
                                 prob = ans.sorted(),
                                 symbol = lang.as_symbol(),
@@ -333,14 +333,14 @@ pub fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
                     try_say!(ctx,msg,format!("{}", err_msg));
                 },
                 Ok(parser::Hint::First(num)) | Ok(parser::Hint::Random(num)) if num == 0 => {
-                    try_say!(ctx,msg,"ゼロ文字ヒントは意味ねえよ、ボケ！");
+                    try_say!(ctx,msg,"ゼロ文字ヒントはだせません。");
                 },
                 Ok(parser::Hint::First(num)) | Ok(parser::Hint::Random(num)) if num == g.len() || num == g.len() - 1 => {
                     try_say!(ctx,msg,"答えが一意に定まるためギブアップとみなされました！");
                     giveup_impl(ctx, msg, &mut *guard)?;
                 },
                 Ok(parser::Hint::First(num)) | Ok(parser::Hint::Random(num)) if num > g.len() => {
-                    try_say!(ctx,msg,"問題の文字数より長えよボケが！");
+                    try_say!(ctx,msg,"ヒントが文字数を超えていますｗ");
                 },
                 Ok(parser::Hint::First(num)) => {
                     g.truncate(num);

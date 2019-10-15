@@ -5,6 +5,7 @@ use itertools::Itertools;
 use rand::distributions::{Distribution, Uniform};
 use serenity::client::Context;
 use serenity::model::channel::Message;
+use crate::try_say;
 
 use std::ops::AddAssign;
 use std::sync::{Arc, Mutex};
@@ -191,18 +192,17 @@ impl Status {
         let sorted = ans.sorted();
         println!("called contest_continue: [{}, {}]", ans, sorted);
         let (count, num) = self.get_contest_num().unwrap();
-        msg.channel_id
-            .say(
-                &ctx,
-                format!(
-                    "問 {current} ({current}/{number})\nソートなぞなぞ ソート前の {symbol} な〜んだ？\n{prob}",
-                    number = num,
-                    current = *count + 1,
-                    prob = sorted,
-                    symbol = lang.as_symbol(),
-                ),
+        try_say!(
+            ctx,
+            msg,
+            format!(
+                "問 {current} ({current}/{number})\nソートなぞなぞ ソート前の {symbol} な〜んだ？\n`{prob}`",
+                number = num,
+                current = *count + 1,
+                prob = sorted,
+                symbol = lang.as_symbol(),
             )
-            .expect("fail to post");
+        );
         *self = Status::Contesting(ans.to_string(), lang, (*count + 1, *num), Instant::now());
     }
 

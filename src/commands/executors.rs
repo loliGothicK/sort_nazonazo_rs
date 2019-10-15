@@ -23,16 +23,14 @@ pub(crate) fn prob(ctx: &mut Context, msg: &Message, lang: bot::Lang) -> String 
     };
     let ans = dic.get(&mut rand::thread_rng());
     let sorted = ans.sorted();
-    msg.channel_id
-        .say(
-            &ctx,
-            format!(
-                "ソートなぞなぞ ソート前の {as_str} な〜んだ？\n{prob}",
-                as_str = lang.as_symbol(),
-                prob = sorted
-            ),
-        )
-        .expect("fail to post");
+    try_say!(
+        ctx,
+        msg,
+        format!(
+            "ソートなぞなぞ ソート前の {as_str} な〜んだ？\n`{prob}`",
+            as_str = lang.as_symbol(),
+            prob = sorted
+        ));
     println!("called prob: [{}, {}]", ans, sorted);
     ans.clone()
 }
