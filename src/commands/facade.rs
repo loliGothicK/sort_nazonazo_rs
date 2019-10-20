@@ -289,10 +289,14 @@ pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
                             ),
                         )
                         .expect("fail to post");
+                    *bot::CONTEST_RESULT.lock().unwrap() = IndexMap::new();
                     *quiz_guard = bot::Status::Contesting(ans.to_string(), lang, (1, num), Instant::now());
                 }
             }
         }
+    }
+    if !bot::CONTEST_RESULT.lock().unwrap().is_empty() {
+        panic!("contest result: initialization error");
     }
     Ok(())
 }
