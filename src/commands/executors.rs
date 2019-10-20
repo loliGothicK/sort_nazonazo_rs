@@ -125,11 +125,13 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                 }
             }
             bot::CheckResult::Anagram(ans) => {
-                *bot::CONTEST_RESULT
-                    .lock()
-                    .unwrap()
-                    .entry(msg.author.name.clone())
-                    .or_insert(ContestData::default()) += elapsed.unwrap();
+                if quiz_guard.is_contesting() {
+                    *bot::CONTEST_RESULT
+                        .lock()
+                        .unwrap()
+                        .entry(msg.author.name.clone())
+                        .or_insert(ContestData::default()) += elapsed.unwrap();
+                }
                 try_say!(
                     ctx,
                     msg,
@@ -141,11 +143,13 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                 );
             }
             bot::CheckResult::Full(ans) => {
-                *bot::CONTEST_RESULT
-                    .lock()
-                    .unwrap()
-                    .entry(msg.author.name.clone())
-                    .or_insert(ContestData::default()) += elapsed.unwrap();
+                if quiz_guard.is_contesting() {
+                    *bot::CONTEST_RESULT
+                        .lock()
+                        .unwrap()
+                        .entry(msg.author.name.clone())
+                        .or_insert(ContestData::default()) += elapsed.unwrap();
+                }
                 try_say!(
                     ctx,
                     msg,
