@@ -233,7 +233,8 @@ impl DictionarySelector {
             set: Default::default(),
         }
     }
-    pub fn set<S: Into<String>>(&mut self, languages: Vec<S>) {
+    pub fn init<S: Into<String>>(&mut self, languages: Vec<S>) {
+        self.set = IndexSet::new();
         if languages.len() == 1 {
             self.engine = Ok(Lang::from(languages.into_iter().next().unwrap()));
         } else {

@@ -272,7 +272,7 @@ pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
                 Ok((num, mut languages)) => {
                     languages.sort();
                     languages.dedup();
-                    CONTEST_LIBRARY.lock().unwrap().set(languages);
+                    CONTEST_LIBRARY.lock().unwrap().init(languages);
                     let (dic, lang) = CONTEST_LIBRARY
                         .lock()
                         .unwrap()
