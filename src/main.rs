@@ -57,6 +57,7 @@ impl EventHandler for Handler {
 }
 
 fn main() {
+    println!("hello!");
     // Login with a bot token from the environment
     let mut client = Client::new(&env::var("DISCORD_TOKEN").expect("token"), Handler)
         .expect("Error creating client");
@@ -84,7 +85,7 @@ fn main() {
                             try_say!(
                                 ctx,
                                 msg,
-                                format!("前回の出題が解かれていません\n問題: {}", ans.sorted())
+                                format!("前回の出題が解かれていません\n問題: `{}`", ans.sorted())
                             );
                             false
                         }
@@ -92,7 +93,7 @@ fn main() {
                             try_say!(
                                 ctx,
                                 msg,
-                                format!("現在コンテスト中です\n問題: {}", ans.sorted())
+                                format!("現在コンテスト中です\n問題: `{}`", ans.sorted())
                             );
                             false
                         }
