@@ -1,4 +1,5 @@
 pub mod permission;
+pub mod prefix;
 
 use serde_derive::{Deserialize, Serialize};
 use std::fs::File;
@@ -10,6 +11,7 @@ use toml;
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub(crate) struct Config {
     pub(crate) channel: permission::Channel,
+    pub(crate) prefix: prefix::Prefix,
 }
 
 lazy_static! {
@@ -30,7 +32,7 @@ pub(crate) fn init_config<ConfigPath: AsRef<Path>>(path: ConfigPath) -> std::io:
         |mut file| {
             let mut buffer = String::new();
             file.read_to_string(&mut buffer)?;
-            let conf: Config = toml::from_slice(buffer.as_bytes())?;
+            let conf: Config = toml::from_slice(buffer.as_bytes()).unwrap_or_default();
             Ok(conf)
         },
     )

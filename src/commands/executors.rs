@@ -30,7 +30,8 @@ pub(crate) fn prob(ctx: &mut Context, msg: &Message, lang: bot::Lang) -> String 
             "ソートなぞなぞ ソート前の {as_str} な〜んだ？\n`{prob}`",
             as_str = lang.as_symbol(),
             prob = sorted
-        ));
+        )
+    );
     println!("called prob: [{}, {}]", ans, sorted);
     ans.clone()
 }

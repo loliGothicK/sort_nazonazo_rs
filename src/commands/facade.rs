@@ -87,7 +87,7 @@ group!({
     options: {
         description: "A group with commands providing settings of enable/disable switch in channel.",
     },
-    commands: [enable, disable],
+    commands: [enable, disable, prefix],
 });
 
 #[command]
@@ -470,4 +470,51 @@ pub fn disable(ctx: &mut Context, msg: &Message) -> CommandResult {
         "このチャンネルでソートなぞなぞが無効になりました。"
     );
     Ok(sync_setting()?)
+}
+
+#[command]
+#[description = "Set prefix on a channel."]
+#[bucket = "long"]
+pub fn prefix(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
+    println!("Got command '~prefix' by user '{}'", msg.author.name);
+    match parser::prefix(&mut args) {
+        Ok(Some(prefix)) => {
+            settings::SETTINGS
+                .lock()
+                .unwrap()
+                .prefix
+                .dynamic
+                .entry(msg.channel_id.as_u64().to_string())
+                .and_modify(|old| *old = prefix.clone())
+                .or_insert(prefix.clone());
+            try_say!(
+                ctx,
+                msg,
+                format!("このチャンネルでprefixが `{}` になりました。", prefix)
+            );
+        }
+        Ok(None) => {
+            let prefix = settings::SETTINGS
+                .lock()
+                .unwrap()
+                .prefix
+                .dynamic
+                .get(&msg.channel_id.as_u64().to_string())
+                .cloned()
+                .unwrap_or_else(|| "~".to_string());
+
+            try_say!(
+                ctx,
+                msg,
+                format!("このチャンネルのprefixは現在 `{}` です。", prefix)
+            );
+        }
+        Err(err_msg) => {
+            try_say!(ctx, msg, format!("{}", err_msg));
+        }
+    }
+    if let Err(err) = sync_setting() {
+        println!("{}", err);
+    }
+    Ok(())
 }

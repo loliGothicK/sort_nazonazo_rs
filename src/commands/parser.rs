@@ -1,5 +1,6 @@
 use super::facade;
-use clap::{App, AppSettings, Arg};
+use clap::{App, AppSettings, Arg, SubCommand};
+use boolinator::Boolinator;
 
 fn range_validator(low: u32, up: u32) -> Box<dyn Fn(String) -> Result<(), String>> {
     Box::new(move |num: String| match num.parse::<u32>() {
@@ -24,6 +25,11 @@ fn language_validator(language: String) -> Result<(), String> {
     } else {
         Ok(())
     }
+}
+
+fn prefix_validator(prefix: String) -> Result<(), String> {
+    (!prefix.is_ascii() || prefix.len() <= 5)
+        .as_result((), "Please specify an ASCII string that less than or equal to 5 characters".into())
 }
 
 pub(crate) fn contest(
@@ -101,5 +107,33 @@ pub(crate) fn hint(args: &mut serenity::framework::standard::Args) -> clap::Resu
             } else {
                 Hint::First(num)
             }
+        })
+}
+
+pub(crate) fn prefix(
+    args: &mut serenity::framework::standard::Args,
+) -> clap::Result<Option<String>> {
+    App::new("prefix")
+        .version("0.0.1")
+        .setting(AppSettings::ColorNever)
+        .subcommand(
+            SubCommand::with_name("set").about("set new prefix")
+                .setting(AppSettings::ColorNever)
+                .arg(
+                Arg::with_name("prefix")
+                    .required(true)
+                    .validator(prefix_validator)
+                    .help("Sets new prefix if any"),
+            ),
+        )
+        .get_matches_from_safe(
+            std::iter::once("prefix".to_string())
+                .chain(args.iter::<String>().filter_map(Result::ok)),
+        )
+        .map(|matches| {
+            matches
+                .subcommand_matches("set")
+                .map(|arg| arg.value_of("prefix").map(str::to_string))
+                .flatten()
         })
 }

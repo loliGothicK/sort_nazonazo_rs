@@ -1,11 +1,11 @@
 use super::dictionary::*;
 use super::sort::Sorted;
+use crate::try_say;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use rand::distributions::{Distribution, Uniform};
 use serenity::client::Context;
 use serenity::model::channel::Message;
-use crate::try_say;
 
 use std::ops::AddAssign;
 use std::sync::{Arc, Mutex};

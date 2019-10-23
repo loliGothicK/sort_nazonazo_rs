@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Relase Build" type="CargoCommandRunConfiguration" factoryName="Cargo Command" singleton="false">
-    <option name="channel" value="DEFAULT" />
-    <option name="command" value="cargo build --release" />
+    <option name="channel" value="NIGHTLY" />
+    <option name="command" value="build --release" />
     <option name="allFeatures" value="false" />
     <option name="nocapture" value="false" />
     <option name="emulateTerminal" value="false" />

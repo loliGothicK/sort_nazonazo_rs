@@ -24,6 +24,7 @@ quick-error = { package = "quick-error2", version = "2" }
 ordinal = "0.2"
 tsukuyomi = "0.5.3"
 juniper = "0.14.0"
+boolinator = "2.4.0"
 #nazonazo_macros = { path = "nazonazo_macros" }
 
 [dependencies.clap]

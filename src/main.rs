@@ -1,5 +1,6 @@
 //#![feature(async_await)]
 #![feature(result_map_or_else)]
+#![feature(option_flattening)]
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
@@ -15,6 +16,7 @@ extern crate unicode_segmentation;
 #[macro_use]
 extern crate quick_error;
 extern crate ordinal;
+extern crate boolinator;
 //extern crate nazonazo_macros;
 
 use regex::Regex;
@@ -32,7 +34,7 @@ pub mod sort;
 use sort::Sorted;
 
 use commands::{executors, facade};
-use serenity::model::id::ChannelId;
+use serenity::model::id::{ChannelId, UserId};
 
 #[macro_export]
 macro_rules! try_say {
@@ -63,7 +65,23 @@ fn main() {
         .expect("Error creating client");
     client.with_framework(
         StandardFramework::new()
-            .configure(|c| c.prefix("~")) // set the bot's prefix to "~"
+            .configure(|c| {
+                c.dynamic_prefix(|_, msg| {
+                    Some(
+                        settings::SETTINGS
+                            .lock()
+                            .unwrap()
+                            .prefix
+                            .dynamic
+                            .get(&msg.channel_id.as_u64().to_string())
+                            .cloned()
+                            .unwrap_or_else(|| "~".to_string()),
+                    )
+                })
+                .on_mention(Some(UserId::from(621402474527588352)))
+                .allow_dm(true)
+                .no_dm_prefix(true)
+            }) // set the bot's prefix to "~"
             .bucket("basic", |b| b.delay(1).time_span(0).limit(1))
             .bucket("long", |b| b.delay(1).time_span(2).limit(1))
             .before(|ctx, msg, command_name| {
@@ -104,6 +122,7 @@ fn main() {
                 }
             })
             .normal_message(|ctx, msg| {
+                println!("{}", msg.author.id);
                 if !msg.author.bot {
                     let re = Regex::new(r"^kick\(.*\);$").unwrap();
                     if re.is_match(&msg.content) {
