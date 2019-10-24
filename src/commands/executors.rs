@@ -68,70 +68,72 @@ fn main() {{
 }
 
 pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
-    if let Ok(mut quiz_guard) = bot::QUIZ.lock() {
-        let elapsed = quiz_guard.elapsed();
-        match quiz_guard.answer_check(&msg.content) {
+    if let Ok(mut state) = bot::BOT.write() {
+        let mut quiz = state.get_mut(msg.channel_id.as_u64()).unwrap();
+        let elapsed = quiz.stat.elapsed();
+        match quiz.stat.answer_check(&msg.content) {
             bot::CheckResult::WA => {
                 // includes the case that bot is standing by.
                 return;
             }
             bot::CheckResult::Assumed(_ans) => {
-                if quiz_guard.is_holding() {
+                if quiz.stat.is_holding() {
                     try_say!(
                         ctx,
                         msg,
                         format!(
                             "{} さん、正解です！\n正解は\"{}\"でした！ [{:.3} sec]",
                             &msg.author.name,
-                            quiz_guard.ans().unwrap(),
+                            quiz.stat.ans().unwrap(),
                             elapsed.unwrap(),
                         )
                     );
-                    *quiz_guard = bot::Status::StandingBy;
+                    quiz.stat = bot::Status::StandingBy;
                     return;
-                } else if quiz_guard.is_contesting() {
+                } else if quiz.stat.is_contesting() {
                     try_say!(
                         ctx,
                         msg,
                         format!(
                             "{} さん、正解です！\n正解は\"{}\"でした！ [{:.3} sec]",
                             &msg.author.name,
-                            quiz_guard.ans().unwrap(),
+                            quiz.stat.ans().unwrap(),
                             elapsed.unwrap(),
                         )
                     );
-                    let contest_result = &mut *bot::CONTEST_RESULT.lock().unwrap();
 
-                    *contest_result
+                    quiz.contest
                         .entry(msg.author.name.clone())
-                        .or_insert(ContestData::default()) += elapsed.unwrap();
+                        .or_insert(ContestData::default())
+                        .time
+                        .push(elapsed.unwrap());
 
-                    let (_, num) = quiz_guard.get_contest_num().unwrap();
+                    let (_, num) = quiz.stat.get_contest_num().unwrap();
 
-                    if quiz_guard.is_contest_end() {
+                    if quiz.stat.is_contest_end() {
                         try_say!(
                             ctx,
                             msg,
                             format!(
                                 "{num}問連続のコンテストが終了しました。\n{result}",
                                 num = num,
-                                result = bot::aggregates(dbg!(&*contest_result))
+                                result = bot::aggregates(&quiz.contest)
                             )
                         );
-                        *contest_result = IndexMap::new();
-                        *quiz_guard = bot::Status::StandingBy;
+                        quiz.contest = IndexMap::new();
+                        quiz.stat = bot::Status::StandingBy;
                     } else {
-                        quiz_guard.contest_continue(ctx, msg);
+                        quiz.contest_continue(ctx, msg);
                     }
                 }
             }
             bot::CheckResult::Anagram(ans) => {
-                if quiz_guard.is_contesting() {
-                    *bot::CONTEST_RESULT
-                        .lock()
-                        .unwrap()
+                if quiz.stat.is_contesting() {
+                    quiz.contest
                         .entry(msg.author.name.clone())
-                        .or_insert(ContestData::default()) += elapsed.unwrap();
+                        .or_insert(ContestData::default())
+                        .time
+                        .push(elapsed.unwrap());
                 }
                 try_say!(
                     ctx,
@@ -144,12 +146,12 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                 );
             }
             bot::CheckResult::Full(ans) => {
-                if quiz_guard.is_contesting() {
-                    *bot::CONTEST_RESULT
-                        .lock()
-                        .unwrap()
+                if quiz.stat.is_contesting() {
+                    quiz.contest
                         .entry(msg.author.name.clone())
-                        .or_insert(ContestData::default()) += elapsed.unwrap();
+                        .or_insert(ContestData::default())
+                        .time
+                        .push(elapsed.unwrap());
                 }
                 try_say!(
                     ctx,

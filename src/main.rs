@@ -15,8 +15,8 @@ extern crate toml;
 extern crate unicode_segmentation;
 #[macro_use]
 extern crate quick_error;
-extern crate ordinal;
 extern crate boolinator;
+extern crate ordinal;
 //extern crate nazonazo_macros;
 
 use regex::Regex;
@@ -47,12 +47,23 @@ macro_rules! try_say {
 
 struct Handler;
 
+lazy_static! {
+    pub static ref IO_LOCK: std::sync::Arc<std::sync::Mutex<()>> =
+        std::sync::Arc::new(std::sync::Mutex::new(()));
+}
+
 impl EventHandler for Handler {
     fn ready(&self, ctx: Context, ready: Ready) {
-        for id in &settings::SETTINGS.lock().unwrap().channel.enabled {
-            ChannelId::from(*id)
-                .say(&ctx, "おはようございます。 botの起動をおしらせします！")
-                .expect("fail to send");
+        loop {
+            if let Ok(mut state) = bot::BOT.write() {
+                for id in &settings::SETTINGS.lock().unwrap().channel.enabled {
+                    state.entry(*id).or_insert(bot::BotState::default());
+                    ChannelId::from(*id)
+                        .say(&ctx, "おはようございます。 botの起動をおしらせします！")
+                        .expect("fail to send");
+                }
+                break;
+            }
         }
         println!("{} is connected!", ready.user.name);
     }
@@ -98,7 +109,13 @@ fn main() {
                     return false;
                 }
                 if facade::QUIZ_COMMANDS_REGEX.is_match(&command_name.to_string()) {
-                    match &*bot::QUIZ.lock().unwrap() {
+                    match &bot::BOT
+                        .read()
+                        .unwrap()
+                        .get(msg.channel_id.as_u64())
+                        .unwrap()
+                        .stat
+                    {
                         bot::Status::Holding(ref ans, ..) => {
                             try_say!(
                                 ctx,
@@ -122,7 +139,12 @@ fn main() {
                 }
             })
             .normal_message(|ctx, msg| {
-                println!("{}", msg.author.id);
+                if let Ok(_) = IO_LOCK.lock() {
+                    println!(
+                        "got message {}... by {}, at {}",
+                        &msg.content, &msg.author.name, &msg.timestamp
+                    );
+                }
                 if !msg.author.bot {
                     let re = Regex::new(r"^kick\(.*\);$").unwrap();
                     if re.is_match(&msg.content) {

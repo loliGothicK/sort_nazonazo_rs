@@ -8,7 +8,7 @@ use serenity::client::Context;
 use serenity::model::channel::Message;
 
 use std::ops::AddAssign;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Instant;
 
 custom_derive! {
@@ -92,6 +92,12 @@ pub enum CheckResult<'a> {
     Anagram(&'a str),
     Full(&'a str),
     WA,
+}
+
+impl Default for Status {
+    fn default() -> Self {
+        Status::StandingBy
+    }
 }
 
 impl Status {
@@ -181,29 +187,6 @@ impl Status {
             Status::Contesting(_, _, (count, num), ..) => Some((count, num)),
             _ => None,
         }
-    }
-
-    pub fn contest_continue(&mut self, ctx: &mut Context, msg: &Message) {
-        let (dic, lang) = CONTEST_LIBRARY
-            .lock()
-            .unwrap()
-            .select(&mut rand::thread_rng());
-        let ans = dic.get(&mut rand::thread_rng());
-        let sorted = ans.sorted();
-        println!("called contest_continue: [{}, {}]", ans, sorted);
-        let (count, num) = self.get_contest_num().unwrap();
-        try_say!(
-            ctx,
-            msg,
-            format!(
-                "問 {current} ({current}/{number})\nソートなぞなぞ ソート前の {symbol} な〜んだ？\n`{prob}`",
-                number = num,
-                current = *count + 1,
-                prob = sorted,
-                symbol = lang.as_symbol(),
-            )
-        );
-        *self = Status::Contesting(ans.to_string(), lang, (*count + 1, *num), Instant::now());
     }
 
     pub fn elapsed(&self) -> Option<f32> {
@@ -298,10 +281,38 @@ pub fn aggregates(contest_result: &IndexMap<String, ContestData>) -> String {
         .collect::<String>()
 }
 
+use std::sync::RwLock;
+
+#[derive(Default)]
+pub struct BotState {
+    pub stat: Status,
+    pub contest: IndexMap<String, ContestData>,
+    pub library: DictionarySelector,
+}
+
+impl BotState {
+    pub fn contest_continue(&mut self, ctx: &mut Context, msg: &Message) {
+        let (dic, lang) = self.library.select(&mut rand::thread_rng());
+        let ans = dic.get(&mut rand::thread_rng());
+        let sorted = ans.sorted();
+        println!("called contest_continue: [{}, {}]", ans, sorted);
+        let (count, num) = self.stat.get_contest_num().unwrap();
+        try_say!(
+            ctx,
+            msg,
+            format!(
+                "問 {current} ({current}/{number})\nソートなぞなぞ ソート前の {symbol} な〜んだ？\n`{prob}`",
+                number = num,
+                current = *count + 1,
+                prob = sorted,
+                symbol = lang.as_symbol(),
+            )
+        );
+        self.stat = Status::Contesting(ans.to_string(), lang, (*count + 1, *num), Instant::now());
+    }
+}
+
 lazy_static! {
-    pub static ref QUIZ: Arc<Mutex<Status>> = Arc::new(Mutex::new(Status::StandingBy));
-    pub static ref CONTEST_RESULT: Arc<Mutex<IndexMap<String, ContestData>>> =
-        Arc::new(Mutex::new(IndexMap::new()));
-    pub static ref CONTEST_LIBRARY: Arc<Mutex<DictionarySelector>> =
-        Arc::new(Mutex::new(DictionarySelector::new()));
+    pub static ref BOT: Arc<RwLock<IndexMap<u64, BotState>>> =
+        Arc::new(RwLock::new(IndexMap::new()));
 }

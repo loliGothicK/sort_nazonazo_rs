@@ -97,10 +97,11 @@ pub fn en(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~en' by user '{}'", msg.author.name);
     if_chain! {
         if !msg.author.bot;
-        if let Ok(mut guard) = bot::QUIZ.lock();
+        if let Ok(mut bus) = bot::BOT.write();
+        if let Some(mut state) = bus.get_mut(msg.channel_id.as_u64());
         then {
             let ans = executors::prob(ctx, &msg, bot::Lang::En);
-            *guard = bot::Status::Holding(ans, bot::Lang::En, Instant::now());
+            state.stat = bot::Status::Holding(ans, bot::Lang::En, Instant::now());
         }
     }
     Ok(())
@@ -113,10 +114,11 @@ pub fn ja(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~ja' by user '{}'", msg.author.name);
     if_chain! {
         if !msg.author.bot;
-        if let Ok(mut guard) = bot::QUIZ.lock();
+        if let Ok(mut bus) = bot::BOT.write();
+        if let Some(mut state) = bus.get_mut(msg.channel_id.as_u64());
         then {
             let ans = executors::prob(ctx, &msg, bot::Lang::Ja);
-            *guard = bot::Status::Holding(ans, bot::Lang::Ja, Instant::now());
+            state.stat = bot::Status::Holding(ans, bot::Lang::Ja, Instant::now());
         }
     }
     Ok(())
@@ -128,10 +130,11 @@ pub fn fr(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~fr' by user '{}'", msg.author.name);
     if_chain! {
         if !msg.author.bot;
-        if let Ok(mut guard) = bot::QUIZ.lock();
+        if let Ok(mut bus) = bot::BOT.write();
+        if let Some(mut state) = bus.get_mut(msg.channel_id.as_u64());
         then {
             let ans = executors::prob(ctx, &msg, bot::Lang::Fr);
-            *guard = bot::Status::Holding(ans, bot::Lang::Fr, Instant::now());
+            state.stat = bot::Status::Holding(ans, bot::Lang::Fr, Instant::now());
         }
     }
     Ok(())
@@ -143,10 +146,11 @@ pub fn de(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~de' by user '{}'", msg.author.name);
     if_chain! {
         if !msg.author.bot;
-        if let Ok(mut guard) = bot::QUIZ.lock();
+        if let Ok(mut bus) = bot::BOT.write();
+        if let Some(mut state) = bus.get_mut(msg.channel_id.as_u64());
         then {
             let ans = executors::prob(ctx, &msg, bot::Lang::De);
-            *guard = bot::Status::Holding(ans, bot::Lang::De, Instant::now());
+            state.stat = bot::Status::Holding(ans, bot::Lang::De, Instant::now());
         }
     }
     Ok(())
@@ -158,10 +162,11 @@ pub fn it(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~it' by user '{}'", msg.author.name);
     if_chain! {
         if !msg.author.bot;
-        if let Ok(mut guard) = bot::QUIZ.lock();
+        if let Ok(mut bus) = bot::BOT.write();
+        if let Some(mut state) = bus.get_mut(msg.channel_id.as_u64());
         then {
             let ans = executors::prob(ctx, &msg, bot::Lang::It);
-            *guard = bot::Status::Holding(ans, bot::Lang::It, Instant::now());
+            state.stat = bot::Status::Holding(ans, bot::Lang::It, Instant::now());
         }
     }
     Ok(())
@@ -173,10 +178,11 @@ pub fn ru(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~ru' by user '{}'", msg.author.name);
     if_chain! {
         if !msg.author.bot;
-        if let Ok(mut guard) = bot::QUIZ.lock();
+        if let Ok(mut bus) = bot::BOT.write();
+        if let Some(mut state) = bus.get_mut(msg.channel_id.as_u64());
         then {
             let ans = executors::prob(ctx, &msg, bot::Lang::Ru);
-            *guard = bot::Status::Holding(ans, bot::Lang::Ru, Instant::now());
+            state.stat = bot::Status::Holding(ans, bot::Lang::Ru, Instant::now());
         }
     }
     Ok(())
@@ -188,53 +194,58 @@ pub fn eo(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~eo' by user '{}'", msg.author.name);
     if_chain! {
         if !msg.author.bot;
-        if let Ok(mut guard) = bot::QUIZ.lock();
+        if let Ok(mut bus) = bot::BOT.write();
+        if let Some(mut state) = bus.get_mut(msg.channel_id.as_u64());
         then {
             let ans = executors::prob(ctx, &msg, bot::Lang::Eo);
-            *guard = bot::Status::Holding(ans, bot::Lang::Eo, Instant::now());
+            state.stat = bot::Status::Holding(ans, bot::Lang::Eo, Instant::now());
         }
     }
     Ok(())
 }
 
-fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) -> CommandResult {
+fn giveup_impl(ctx: &mut Context, msg: &Message) -> CommandResult {
     if !msg.author.bot {
-        if quiz_stat.is_standing_by() {
-            try_say!(ctx, msg, "現在問題は出ていません。");
-        } else if quiz_stat.is_holding() {
-            try_say!(
-                ctx,
-                msg,
-                format!("正解は \"{}\" でした...", quiz_stat.ans().unwrap())
-            );
-            *quiz_stat = bot::Status::StandingBy;
-        } else {
-            let contest_result = &mut *bot::CONTEST_RESULT.lock().unwrap();
-            *contest_result
-                .entry("~giveup".to_string())
-                .or_insert(ContestData::default()) += quiz_stat.elapsed().unwrap();
-            if !quiz_stat.is_contest_end() {
+        if let Ok(mut bus) = bot::BOT.write() {
+            let mut quiz = bus.get_mut(msg.channel_id.as_u64()).unwrap();
+            if quiz.stat.is_standing_by() {
+                try_say!(ctx, msg, "現在問題は出ていません。");
+            } else if quiz.stat.is_holding() {
                 try_say!(
                     ctx,
                     msg,
-                    format!("正解は \"{}\" でした...", quiz_stat.ans().unwrap())
+                    format!("正解は \"{}\" でした...", quiz.stat.ans().unwrap())
                 );
-                quiz_stat.contest_continue(ctx, &msg);
+                quiz.stat = bot::Status::StandingBy;
             } else {
-                let (_, num) = quiz_stat.get_contest_num().unwrap();
-                msg.channel_id
-                    .say(
-                        &ctx,
-                        format!(
-                            "正解は \"{ans}\" でした...\n{num}問連続のコンテストが終了しました。\n{result}",
-                            ans = quiz_stat.ans().unwrap(),
-                            num = num,
-                            result = bot::aggregates(contest_result)
-                        ),
-                    )
-                    .expect("fail to post");
-                *contest_result = IndexMap::new();
-                *quiz_stat = bot::Status::StandingBy;
+                quiz.contest
+                    .entry(msg.author.name.clone())
+                    .or_insert(ContestData::default())
+                    .time
+                    .push(quiz.stat.elapsed().unwrap());
+                if !quiz.stat.is_contest_end() {
+                    try_say!(
+                        ctx,
+                        msg,
+                        format!("正解は \"{}\" でした...", quiz.stat.ans().unwrap())
+                    );
+                    quiz.contest_continue(ctx, &msg);
+                } else {
+                    let (_, num) = quiz.stat.get_contest_num().unwrap();
+                    msg.channel_id
+                        .say(
+                            &ctx,
+                            format!(
+                                "正解は \"{ans}\" でした...\n{num}問連続のコンテストが終了しました。\n{result}",
+                                ans = quiz.stat.ans().unwrap(),
+                                num = num,
+                                result = bot::aggregates(&quiz.contest)
+                            ),
+                        )
+                        .expect("fail to post");
+                    quiz.contest = IndexMap::new();
+                    quiz.stat = bot::Status::StandingBy;
+                }
             }
         }
     }
@@ -246,10 +257,7 @@ fn giveup_impl(ctx: &mut Context, msg: &Message, quiz_stat: &mut bot::Status) ->
 #[bucket = "basic"]
 pub fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~giveup' by user '{}'", msg.author.name);
-    if let Ok(mut guard) = bot::QUIZ.lock() {
-        println!("giveup is accepted");
-        giveup_impl(ctx, msg, &mut *guard)?;
-    }
+    giveup_impl(ctx, msg)?;
     Ok(())
 }
 
@@ -257,25 +265,22 @@ pub fn giveup(ctx: &mut Context, msg: &Message) -> CommandResult {
 #[description = "Starts contest mode."]
 #[bucket = "long"]
 pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
-    use crate::bot::CONTEST_LIBRARY;
+    use itertools::Itertools;
     println!("Got command '~contest' by user '{}'", msg.author.name);
     if_chain! {
         if !msg.author.bot;
-        if let Ok(mut quiz_guard) = bot::QUIZ.lock();
-        if quiz_guard.is_standing_by();
+        if let Ok(mut bus) = bot::BOT.write();
+        if let Some(quiz) = bus.get_mut(msg.channel_id.as_u64());
+        if quiz.stat.is_standing_by();
         then {
             match parser::contest(&mut args) {
                 Err(err_msg) => {
                     try_say!(ctx,msg,err_msg);
                     return Ok(());
                 }
-                Ok((num, mut languages)) => {
-                    languages.sort();
-                    languages.dedup();
-                    CONTEST_LIBRARY.lock().unwrap().init(languages);
-                    let (dic, lang) = CONTEST_LIBRARY
-                        .lock()
-                        .unwrap()
+                Ok((num, languages)) => {
+                    quiz.library.init(languages.iter().unique().collect::<Vec<_>>());
+                    let (dic, lang) = quiz.library
                         .select(&mut rand::thread_rng());
                     let ans = dic.get(&mut rand::thread_rng());
                     msg.channel_id
@@ -289,14 +294,11 @@ pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
                             ),
                         )
                         .expect("fail to post");
-                    *bot::CONTEST_RESULT.lock().unwrap() = IndexMap::new();
-                    *quiz_guard = bot::Status::Contesting(ans.to_string(), lang, (1, num), Instant::now());
+                    quiz.contest = IndexMap::new();
+                    quiz.stat = bot::Status::Contesting(ans.to_string(), lang, (1, num), Instant::now());
                 }
             }
         }
-    }
-    if !bot::CONTEST_RESULT.lock().unwrap().is_empty() {
-        panic!("contest result: initialization error");
     }
     Ok(())
 }
@@ -307,16 +309,19 @@ pub fn contest(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
 pub fn unrated(ctx: &mut Context, msg: &Message) -> CommandResult {
     println!("Got command '~unrated' by user '{}'", msg.author.name);
     loop {
-        if let (Ok(mut quiz), Ok(mut result)) = (bot::QUIZ.lock(), bot::CONTEST_RESULT.lock()) {
-            if quiz.is_contesting() {
-                try_say!(ctx, msg, "コンテストを中止します。");
-                *quiz = bot::Status::StandingBy;
-                *result = IndexMap::new();
-            } else {
-                try_say!(ctx, msg, "現在コンテストは開催されていません。");
+        if let Ok(mut bus) = bot::BOT.write() {
+            if let Some(quiz) = bus.get_mut(msg.channel_id.as_u64()) {
+                if quiz.stat.is_contesting() {
+                    try_say!(ctx, msg, "コンテストを中止します。");
+                    quiz.stat = bot::Status::StandingBy;
+                    quiz.contest = IndexMap::new();
+                } else {
+                    try_say!(ctx, msg, "現在コンテストは開催されていません。");
+                }
+                break;
             }
-            break;
         }
+        break;
     }
     Ok(())
 }
@@ -328,10 +333,11 @@ pub fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     println!("Got command '~hint' by user '{}'", msg.author.name);
     if_chain! {
         if !msg.author.bot;
-        if let Ok(mut guard) = bot::QUIZ.lock();
-        if !guard.is_standing_by();
+        if let Ok(bus) = bot::BOT.read();
+        if let Some(quiz) = bus.get(msg.channel_id.as_u64());
+        if quiz.stat.is_standing_by();
         then {
-            let mut g = UnicodeSegmentation::graphemes(guard.ans().unwrap().as_str(), true).collect::<Vec<&str>>();
+            let mut g = UnicodeSegmentation::graphemes(quiz.stat.ans().unwrap().as_str(), true).collect::<Vec<&str>>();
             match parser::hint(&mut args) {
                 Err(err_msg) => {
                     try_say!(ctx,msg,format!("{}", err_msg));
@@ -341,7 +347,9 @@ pub fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
                 },
                 Ok(parser::Hint::First(num)) | Ok(parser::Hint::Random(num)) if num == g.len() || num == g.len() - 1 => {
                     try_say!(ctx,msg,"答えが一意に定まるためギブアップとみなされました！");
-                    giveup_impl(ctx, msg, &mut *guard)?;
+                    drop(quiz);
+                    drop(bus);
+                    giveup_impl(ctx, msg)?;
                 },
                 Ok(parser::Hint::First(num)) | Ok(parser::Hint::Random(num)) if num > g.len() => {
                     try_say!(ctx,msg,"ヒントが文字数を超えていますｗ");
@@ -446,6 +454,9 @@ pub fn enable(ctx: &mut Context, msg: &Message) -> CommandResult {
             msg,
             "このチャンネルでソートなぞなぞが有効になりました。"
         );
+        if let Ok(mut bus) = bot::BOT.write() {
+            bus.insert(*msg.channel_id.as_u64(), bot::BotState::default());
+        }
         Ok(sync_setting()?)
     } else {
         try_say!(ctx, msg, "このチャンネルでソートなぞなぞはすでに有効です。");
@@ -469,6 +480,9 @@ pub fn disable(ctx: &mut Context, msg: &Message) -> CommandResult {
         msg,
         "このチャンネルでソートなぞなぞが無効になりました。"
     );
+    if let Ok(mut bus) = bot::BOT.write() {
+        bus.swap_remove(msg.channel_id.as_u64());
+    }
     Ok(sync_setting()?)
 }
 
