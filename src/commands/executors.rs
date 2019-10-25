@@ -69,91 +69,91 @@ fn main() {{
 
 pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
     if let Ok(mut state) = bot::BOT.write() {
-        let mut quiz = state.get_mut(msg.channel_id.as_u64()).unwrap();
-        let elapsed = quiz.stat.elapsed();
-        match quiz.stat.answer_check(&msg.content) {
-            bot::CheckResult::WA => {
-                // includes the case that bot is standing by.
-                return;
-            }
-            bot::CheckResult::Assumed(_ans) => {
-                if quiz.stat.is_holding() {
-                    try_say!(
-                        ctx,
-                        msg,
-                        format!(
-                            "{} さん、正解です！\n正解は\"{}\"でした！ [{:.3} sec]",
-                            &msg.author.name,
-                            quiz.stat.ans().unwrap(),
-                            elapsed.unwrap(),
-                        )
-                    );
-                    quiz.stat = bot::Status::StandingBy;
+        if let Some(mut quiz) = state.get_mut(msg.channel_id.as_u64()) {
+            let elapsed = quiz.stat.elapsed();
+            match quiz.stat.answer_check(&msg.content) {
+                bot::CheckResult::WA => {
+                    // includes the case that bot is standing by.
                     return;
-                } else if quiz.stat.is_contesting() {
-                    try_say!(
-                        ctx,
-                        msg,
-                        format!(
-                            "{} さん、正解です！\n正解は\"{}\"でした！ [{:.3} sec]",
-                            &msg.author.name,
-                            quiz.stat.ans().unwrap(),
-                            elapsed.unwrap(),
-                        )
-                    );
-
-                    quiz.contest
-                        .entry(msg.author.name.clone())
-                        .or_insert(ContestData::default())
-                        .time
-                        .push(elapsed.unwrap());
-
-                    let (_, num) = quiz.stat.get_contest_num().unwrap();
-
-                    if quiz.stat.is_contest_end() {
+                }
+                bot::CheckResult::Assumed(_ans) => {
+                    if quiz.stat.is_holding() {
                         try_say!(
                             ctx,
                             msg,
                             format!(
-                                "{num}問連続のコンテストが終了しました。\n{result}",
-                                num = num,
-                                result = bot::aggregates(&quiz.contest)
+                                "{} さん、正解です！\n正解は\"{}\"でした！ [{:.3} sec]",
+                                &msg.author.name,
+                                quiz.stat.ans().unwrap(),
+                                elapsed.unwrap(),
                             )
                         );
-                        quiz.contest = IndexMap::new();
                         quiz.stat = bot::Status::StandingBy;
-                    } else {
-                        quiz.contest_continue(ctx, msg);
+                        return;
+                    } else if quiz.stat.is_contesting() {
+                        try_say!(
+                            ctx,
+                            msg,
+                            format!(
+                                "{} さん、正解です！\n正解は\"{}\"でした！ [{:.3} sec]",
+                                &msg.author.name,
+                                quiz.stat.ans().unwrap(),
+                                elapsed.unwrap(),
+                            )
+                        );
+
+                        quiz.contest
+                            .entry(msg.author.name.clone())
+                            .or_insert(ContestData::default())
+                            .time
+                            .push(elapsed.unwrap());
+
+                        let (_, num) = quiz.stat.get_contest_num().unwrap();
+
+                        if quiz.stat.is_contest_end() {
+                            try_say!(
+                                ctx,
+                                msg,
+                                format!(
+                                    "{num}問連続のコンテストが終了しました。\n{result}",
+                                    num = num,
+                                    result = bot::aggregates(&quiz.contest)
+                                )
+                            );
+                            quiz.contest = IndexMap::new();
+                            quiz.stat = bot::Status::StandingBy;
+                        } else {
+                            quiz.contest_continue(ctx, msg);
+                        }
                     }
                 }
-            }
-            bot::CheckResult::Anagram(ans) => {
-                if quiz.stat.is_contesting() {
-                    quiz.contest
-                        .entry(msg.author.name.clone())
-                        .or_insert(ContestData::default())
-                        .time
-                        .push(elapsed.unwrap());
+                bot::CheckResult::Anagram(ans) => {
+                    if quiz.stat.is_contesting() {
+                        quiz.contest
+                            .entry(msg.author.name.clone())
+                            .or_insert(ContestData::default())
+                            .time
+                            .push(elapsed.unwrap());
+                    }
+                    try_say!(
+                        ctx,
+                        msg,
+                        format!(
+                            "{} さん、{} は非想定解ですが正解です！",
+                            &msg.author.name,
+                            ans.to_lowercase()
+                        )
+                    );
                 }
-                try_say!(
-                    ctx,
-                    msg,
-                    format!(
-                        "{} さん、{} は非想定解ですが正解です！",
-                        &msg.author.name,
-                        ans.to_lowercase()
-                    )
-                );
-            }
-            bot::CheckResult::Full(ans) => {
-                if quiz.stat.is_contesting() {
-                    quiz.contest
-                        .entry(msg.author.name.clone())
-                        .or_insert(ContestData::default())
-                        .time
-                        .push(elapsed.unwrap());
-                }
-                try_say!(
+                bot::CheckResult::Full(ans) => {
+                    if quiz.stat.is_contesting() {
+                        quiz.contest
+                            .entry(msg.author.name.clone())
+                            .or_insert(ContestData::default())
+                            .time
+                            .push(elapsed.unwrap());
+                    }
+                    try_say!(
                     ctx,
                     msg,
                     format!(
@@ -162,6 +162,7 @@ pub(crate) fn answer_check(ctx: &mut Context, msg: &Message) {
                         ans.to_lowercase()
                     )
                 );
+                }
             }
         }
     }

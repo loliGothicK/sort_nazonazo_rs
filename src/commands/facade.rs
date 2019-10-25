@@ -331,70 +331,67 @@ pub fn unrated(ctx: &mut Context, msg: &Message) -> CommandResult {
 #[bucket = "long"]
 pub fn hint(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     println!("Got command '~hint' by user '{}'", msg.author.name);
-    if_chain! {
-        if !msg.author.bot;
-        if let Ok(bus) = bot::BOT.read();
-        if let Some(quiz) = bus.get(msg.channel_id.as_u64());
-        if quiz.stat.is_standing_by();
-        then {
-            let mut g = UnicodeSegmentation::graphemes(quiz.stat.ans().unwrap().as_str(), true).collect::<Vec<&str>>();
-            match parser::hint(&mut args) {
-                Err(err_msg) => {
-                    try_say!(ctx,msg,format!("{}", err_msg));
-                },
-                Ok(parser::Hint::First(num)) | Ok(parser::Hint::Random(num)) if num == 0 => {
-                    try_say!(ctx,msg,"ゼロ文字ヒントはだせません。");
-                },
-                Ok(parser::Hint::First(num)) | Ok(parser::Hint::Random(num)) if num == g.len() || num == g.len() - 1 => {
-                    try_say!(ctx,msg,"答えが一意に定まるためギブアップとみなされました！");
-                    drop(quiz);
-                    drop(bus);
-                    giveup_impl(ctx, msg)?;
-                },
-                Ok(parser::Hint::First(num)) | Ok(parser::Hint::Random(num)) if num > g.len() => {
-                    try_say!(ctx,msg,"ヒントが文字数を超えていますｗ");
-                },
-                Ok(parser::Hint::First(num)) => {
-                    g.truncate(num);
-                    msg.channel_id
-                        .say(
-                            &ctx,
-                            format!(
-                                "答えの先頭 {len} 文字は... => `{hint}` ",
-                                len = num,
-                                hint = g.into_iter().collect::<String>(),
-                            ),
-                        )
-                        .expect("fail to post");
-                },
-                Ok(parser::Hint::Random(num)) => {
-                    let star = "*";
-                    let mut hit_str: Vec<&str> = std::iter::repeat(star).take(g.len()).collect();
-                    for idx in rand::seq::index::sample(&mut rand::thread_rng(), g.len(), num).into_iter() {
-                        if let Some(elem) = hit_str.get_mut(idx) {
-                            *elem = g.get(idx).unwrap();
-                        }
-                    }
-                    msg.channel_id
-                        .say(
-                            &ctx,
-                            format!(
-                                "ランダムヒント {len} 文字... => `{hint}` ",
-                                len = num,
-                                hint = hit_str.join(""),
-                            ),
-                        )
-                        .expect("fail to post");
-                },
-            }
-        } else {
-            match parser::hint(&mut args) {
-                Err(err_msg) => {
-                    try_say!(ctx,msg,format!("{}", err_msg));
-                },
-                Ok(_) => {
+    loop {
+        if_chain! {
+            if !msg.author.bot;
+            if let Ok(bus) = bot::BOT.read();
+            if let Some(quiz) = bus.get(msg.channel_id.as_u64());
+            then {
+                if quiz.stat.is_standing_by() {
                     try_say!(ctx,msg,"問題が出てないですよ？");
-                },
+                    break;
+                }
+                let mut g = UnicodeSegmentation::graphemes(quiz.stat.ans().unwrap().as_str(), true).collect::<Vec<&str>>();
+                match parser::hint(&mut args) {
+                    Err(err_msg) => {
+                        try_say!(ctx,msg,format!("{}", err_msg));
+                    },
+                    Ok(parser::Hint::First(num)) | Ok(parser::Hint::Random(num)) if num == 0 => {
+                        try_say!(ctx,msg,"ゼロ文字ヒントはだせません。");
+                    },
+                    Ok(parser::Hint::First(num)) | Ok(parser::Hint::Random(num)) if num == g.len() || num == g.len() - 1 => {
+                        try_say!(ctx,msg,"答えが一意に定まるためギブアップとみなされました！");
+                        drop(quiz);
+                        drop(bus);
+                        giveup_impl(ctx, msg)?;
+                    },
+                    Ok(parser::Hint::First(num)) | Ok(parser::Hint::Random(num)) if num > g.len() => {
+                        try_say!(ctx,msg,"ヒントが文字数を超えていますｗ");
+                    },
+                    Ok(parser::Hint::First(num)) => {
+                        g.truncate(num);
+                        msg.channel_id
+                            .say(
+                                &ctx,
+                                format!(
+                                    "答えの先頭 {len} 文字は... => `{hint}` ",
+                                    len = num,
+                                    hint = g.into_iter().collect::<String>(),
+                                ),
+                            )
+                            .expect("fail to post");
+                    },
+                    Ok(parser::Hint::Random(num)) => {
+                        let star = "*";
+                        let mut hit_str: Vec<&str> = std::iter::repeat(star).take(g.len()).collect();
+                        for idx in rand::seq::index::sample(&mut rand::thread_rng(), g.len(), num).into_iter() {
+                            if let Some(elem) = hit_str.get_mut(idx) {
+                                *elem = g.get(idx).unwrap();
+                            }
+                        }
+                        msg.channel_id
+                            .say(
+                                &ctx,
+                                format!(
+                                    "ランダムヒント {len} 文字... => `{hint}` ",
+                                    len = num,
+                                    hint = hit_str.join(""),
+                                ),
+                            )
+                            .expect("fail to post");
+                    },
+                }
+                break;
             }
         }
     }
