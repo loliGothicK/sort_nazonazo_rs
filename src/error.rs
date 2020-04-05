@@ -1,17 +1,9 @@
-use std::io;
-use std::path::Path;
+use thiserror::Error;
 
-quick_error! {
-    #[derive(Debug)]
-    pub enum BotError {
-        Io(s: String, err: std::io::Error) {
-            display("I/O error: {} => {}", err, s)
-            context(path: &'a Path, err: io::Error) -> (path.to_string_lossy().to_string(), err)
-        }
-        Parse(s: &'static str, err: toml::ser::Error) {
-            description(err.description())
-            display("Parse error: {} => {}", err, s)
-            context(s: &'static str, err: toml::ser::Error) -> (s, err)
-        }
-    }
+#[derive(Error, Debug)]
+pub enum BotError {
+    #[error("I/O error")]
+    IoError(#[from] std::io::Error),
+    #[error("Paese error")]
+    ParseError(#[from] toml::ser::Error),
 }

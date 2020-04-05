@@ -10,10 +10,10 @@ extern crate clap;
 extern crate regex;
 extern crate toml;
 extern crate unicode_segmentation;
-#[macro_use]
-extern crate quick_error;
 extern crate ordinal;
+extern crate anyhow;
 extern crate boolinator;
+extern crate thiserror;
 //extern crate nazonazo_macros;
 
 use regex::Regex;

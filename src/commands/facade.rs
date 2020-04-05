@@ -10,7 +10,7 @@ use serenity::{
 use std::time::Instant;
 
 use super::super::bot;
-use super::super::error::BotError;
+
 use super::super::settings;
 use super::super::sort::Sorted;
 use super::{executors, parser};
@@ -405,21 +405,22 @@ fn nazonazo_help(
     help_commands::with_embeds(context, msg, args, help_options, groups, owners)
 }
 
-fn sync_setting() -> Result<(), BotError> {
-    use quick_error::ResultExt;
+fn sync_setting() -> anyhow::Result<()> {
+    use anyhow::Context as _;
+
     let path = std::path::Path::new("/tmp/settings/settings.toml");
     let mut conf = OpenOptions::new()
         .write(true)
         .truncate(true)
         .open(path)
-        .context(path)?;
+        .with_context(|| path.to_string_lossy())?;
     conf.write_all(
         toml::to_string(&*settings::SETTINGS.lock().unwrap())
             .context("/tmp/settings/settings.toml")?
             .as_bytes(),
     )
-    .context(path)?;
-    conf.sync_all().context(path)?;
+    .with_context(|| path.to_string_lossy())?;
+    conf.sync_all().with_context(|| path.to_string_lossy())?;
     Ok(())
 }
 
