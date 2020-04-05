@@ -1,6 +1,3 @@
-//#![feature(async_await)]
-#![feature(result_map_or_else)]
-#![feature(option_flattening)]
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
@@ -49,11 +46,9 @@ struct Handler;
 
 impl EventHandler for Handler {
     fn ready(&self, ctx: Context, ready: Ready) {
-        for id in &settings::SETTINGS.lock().unwrap().channel.enabled {
-            ChannelId::from(*id)
-                .say(&ctx, "おはようございます。 botの起動をおしらせします！")
-                .expect("fail to send");
-        }
+        ChannelId::from(621544952299782144_u64)
+            .say(&ctx, "botがDiscordとの接続を完了しました。")
+            .expect("fail to send");
         println!("{} is connected!", ready.user.name);
     }
 }
@@ -138,7 +133,6 @@ fn main() {
             .group(&commands::facade::EXTRA_GROUP)
             .help(&commands::facade::NAZONAZO_HELP),
     );
-
     // start listening for events by starting a single shard
     if let Err(why) = client.start() {
         println!("An error occurred while running the client: {:?}", why);
